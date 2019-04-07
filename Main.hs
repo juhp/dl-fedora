@@ -18,8 +18,10 @@ import SimpleCmd ((.$))
 import SimpleCmdArgs
 --import Paths_fedora_iso_dl (version)
 
-import System.Directory (setCurrentDirectory)
+import System.Directory (createFileLink, doesFileExist, getSymbolicLinkTarget,
+                         removeFile, setCurrentDirectory)
 import System.Environment.XDG.UserDir (getUserDir)
+import System.FilePath (takeExtension, takeFileName)
 
 data FedoraEdition = Cloud
                    | Container
@@ -48,18 +50,25 @@ findISO dryrun host arch edition release = do
                _ -> if release > 30
                     then ("development/rawhide", False)
                     else ("releases" </> show release, True)
-      toppath = if ((decodePathSegments . extractPath) (B.pack host) == [])
+      toppath = if null ((decodePathSegments . extractPath) (B.pack host))
                 then "pub/fedora/linux"
                 else ""
       path = toppath </> relpath </> show edition </> arch </> editionMedia edition
   fileurl <- checkURL path
-  if dryrun then putStrLn $ T.pack fileurl
-    else do
+  putStrLn $ T.pack fileurl
+  unless dryrun $ do
     dlDir <- getUserDir "DOWNLOAD"
     setCurrentDirectory dlDir
-    putStrLn ""
-    "wget" .$ ["-c", fileurl]
-    -- "curl" .$ ["-C", "-", "-L", "-O", fileurl]
+    "curl" .$ ["-C", "-", "-L", "-O", fileurl]
+    let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ show release ++ "-latest" <.> takeExtension fileurl
+    symExists <- doesFileExist symlink
+    if symExists
+      then do
+      tgt <- getSymbolicLinkTarget symlink
+      unless (tgt == takeFileName fileurl) $ do
+        removeFile symlink
+        createSymlink (takeFileName fileurl) symlink
+      else createSymlink (takeFileName fileurl) symlink
   where
     checkURL :: String -> IO String
     checkURL path = do
@@ -70,7 +79,6 @@ findISO dryrun host arch edition release = do
       let redirect = listToMaybe . reverse $ mapMaybe (lookup "Location" . responseHeaders . snd) $ hrRedirects respHist
       let finalUrl = maybe url B.unpack redirect
       when (isJust redirect) $ putStr "Redirected to "
-      putStrLn $ T.pack finalUrl
       let response = hrFinalResponse respHist
       if statusCode (responseStatus response) /= 200
         then
@@ -87,6 +95,11 @@ findISO dryrun host arch edition release = do
             error $ "not found " ++ finalUrl
           Just file ->
             return $ finalUrl </> T.unpack file
+
+    createSymlink :: FilePath -> FilePath -> IO ()
+    createSymlink tgt symlink = do
+      createFileLink tgt symlink
+      putStrLn $ T.pack $ symlink ++ " -> " ++ tgt
 
 editionPrefix :: FedoraEdition -> Text
 editionPrefix Workstation = "Fedora-Workstation-Live"

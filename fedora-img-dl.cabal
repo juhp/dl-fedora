@@ -20,6 +20,7 @@ executable fedora-img-dl
   build-depends:       basic-prelude,
                        bytestring,
                        directory,
+                       filepath,
                        html-conduit,
                        http-client,
                        http-client-tls,
