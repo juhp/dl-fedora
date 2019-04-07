@@ -2,7 +2,7 @@ cabal-version:       2.0
 name:                fedora-img-dl
 version:             0.1
 synopsis:            Fedora image download tool
-description:         Tool to download Fedora iso and images files
+description:         Tool to download Fedora iso and image files
 license:             GPL-3
 license-file:        LICENSE
 author:              Jens Petersen
@@ -14,18 +14,23 @@ extra-doc-files:     README.md
                    , CHANGELOG.md
 tested-with:         GHC == 8.4.4
 
-executable fedora-iso-dl
+executable fedora-img-dl
   main-is:             Main.hs
 
   build-depends:       basic-prelude,
                        bytestring,
+                       directory,
                        html-conduit,
-                       http-conduit,
+                       http-client,
+                       http-client-tls,
+                       http-types,
                        hxt,
                        network-uri,
                        optparse-applicative,
+                       simple-cmd,
                        simple-cmd-args >= 0.1.1,
                        text,
+                       xdg-userdirs,
                        xml-conduit
 
   ghc-options:         -fwarn-missing-signatures
