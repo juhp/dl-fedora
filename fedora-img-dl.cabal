@@ -31,6 +31,7 @@ executable fedora-img-dl
                        simple-cmd >= 0.1.4,
                        simple-cmd-args >= 0.1.1,
                        text,
+                       unix,
                        xdg-userdirs,
                        xml-conduit
 

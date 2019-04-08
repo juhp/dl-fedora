@@ -19,11 +19,11 @@ import SimpleCmd (cmd_, error')
 import SimpleCmdArgs
 --import Paths_fedora_iso_dl (version)
 
-import System.Directory (createFileLink, doesFileExist, getPermissions,
-                         getSymbolicLinkTarget, removeFile, setCurrentDirectory,
-                         writable)
+import System.Directory (doesFileExist, getPermissions, removeFile,
+                         setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath (takeExtension, takeFileName)
+import System.Posix.Files (createSymbolicLink, readSymbolicLink)
 
 data FedoraEdition = Cloud
                    | Container
@@ -79,7 +79,7 @@ findISO dryrun mhost arch edition release = do
     symExists <- doesFileExist symlink
     if symExists
       then do
-      lnktgt <- getSymbolicLinkTarget symlink
+      lnktgt <- readSymbolicLink symlink
       unless (lnktgt == localfile) $ do
         removeFile symlink
         createSymlink localfile symlink
@@ -114,7 +114,7 @@ findISO dryrun mhost arch edition release = do
 
     createSymlink :: FilePath -> FilePath -> IO ()
     createSymlink tgt symlink = do
-      createFileLink tgt symlink
+      createSymbolicLink tgt symlink
       putStrLn $ T.pack $ symlink ++ " -> " ++ tgt
 
 editionPrefix :: FedoraEdition -> Text
