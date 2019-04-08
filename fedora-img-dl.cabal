@@ -36,7 +36,6 @@ executable fedora-img-dl
 
   ghc-options:         -fwarn-missing-signatures
                        -Wall
-                       -Wpartial-fields
 
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
