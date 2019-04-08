@@ -1,8 +1,8 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-
-import BasicPrelude
-
 import qualified Data.ByteString.Char8 as B
+
+import Control.Monad (when, unless)
+import Data.Maybe
+import Data.Text (Text)
 
 import Network.HTTP.Client (brConsume, hrFinalResponse, hrRedirects, newManager, parseRequest, responseBody, responseHeaders, responseOpenHistory, responseStatus)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
@@ -17,12 +17,12 @@ import Text.XML.Cursor
 
 import SimpleCmd (cmd_, error')
 import SimpleCmdArgs
---import Paths_fedora_iso_dl (version)
+import Paths_fedora_img_dl (version)
 
 import System.Directory (doesFileExist, getPermissions, removeFile,
                          setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (takeExtension, takeFileName)
+import System.FilePath (takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, readSymbolicLink)
 
 data FedoraEdition = Cloud
@@ -38,7 +38,7 @@ main :: IO ()
 main =
   let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
              P.<$$> P.text "RELEASE can be 'rawhide', 'branched', 'respin', 'beta' or release version" in
-  simpleCmdArgsWithMods Nothing (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
+  simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
@@ -64,7 +64,7 @@ findISO dryrun mhost arch edition release = do
                 else ""
       url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition ++ "/"
   fileurl <- checkURL url mprefix
-  putStrLn $ T.pack fileurl
+  putStrLn fileurl
   unless dryrun $ do
     dlDir <- getUserDir "DOWNLOAD"
     setCurrentDirectory dlDir
@@ -115,7 +115,7 @@ findISO dryrun mhost arch edition release = do
     createSymlink :: FilePath -> FilePath -> IO ()
     createSymlink tgt symlink = do
       createSymbolicLink tgt symlink
-      putStrLn $ T.pack $ symlink ++ " -> " ++ tgt
+      putStrLn $ symlink ++ " -> " ++ tgt
 
 editionPrefix :: FedoraEdition -> Text
 editionPrefix Workstation = "Fedora-Workstation-Live"

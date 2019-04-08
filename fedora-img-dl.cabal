@@ -16,8 +16,9 @@ tested-with:         GHC == 8.4.4
 
 executable fedora-img-dl
   main-is:             Main.hs
+  other-modules:       Paths_fedora_img_dl
 
-  build-depends:       basic-prelude,
+  build-depends:       base < 5,
                        bytestring,
                        directory,
                        filepath,
