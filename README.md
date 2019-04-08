@@ -5,7 +5,7 @@
 [![Stackage Lts](http://stackage.org/package/fedora-img-dl/badge/lts)](http://stackage.org/lts/package/fedora-img-dl)
 [![Stackage Nightly](http://stackage.org/package/fedora-img-dl/badge/nightly)](http://stackage.org/nightly/package/fedora-img-dl)
 
-Fedora image download tool
+Tool for downloading Fedora images.
 
 `fedora-img-dl 31` downloads by default the Fedora 31 Workstation Live iso
 
