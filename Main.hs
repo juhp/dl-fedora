@@ -41,23 +41,29 @@ main =
   simpleCmdArgsWithMods Nothing (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> switchWith 'n' "dry-run" "Don't actually download anything"
-    <*> strOptionalWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org" "https://download.fedoraproject.org"
+    <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
     <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition (Workstation [default], Server, ...)" Workstation
-    <*> argumentWith auto "RELEASE"
+    <*> strArg "RELEASE"
 
-findISO :: Bool -> String -> String -> FedoraEdition -> Int -> IO ()
-findISO dryrun host arch edition release = do
-  let (relpath, _released) = case release of
-               30 -> ("development/30", False)
-               _ -> if release > 30
-                    then ("development/rawhide", False)
-                    else ("releases" </> show release, True)
+findISO :: Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
+findISO dryrun mhost arch edition release = do
+  let (mlocn, relpath, mprefix) =
+        case release of
+          "rawhide" -> (Nothing, "development/rawhide", Nothing)
+          "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just "F29-WORK-x86_64")
+          "beta" -> (Nothing ,"releases/test/30_Beta", Nothing) -- FIXME: navigate!
+          rel | rel `elem` ["30", "branched"] -> (Nothing, "development/30", Nothing) -- FIXME: navigate!
+          _ -> (Nothing, "releases" </> release, Nothing)
+  when (isJust mlocn && isJust mhost && mlocn /= mhost) $
+    error' "Cannot specify host for this image"
+  let host = fromMaybe "https://download.fedoraproject.org" $
+             if isJust mlocn then mlocn else mhost
       toppath = if null ((decodePathSegments . extractPath) (B.pack host))
                 then "pub/fedora/linux"
                 else ""
-      path = toppath </> relpath </> show edition </> arch </> editionMedia edition
-  fileurl <- checkURL path
+      url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition ++ "/"
+  fileurl <- checkURL url mprefix
   putStrLn $ T.pack fileurl
   unless dryrun $ do
     dlDir <- getUserDir "DOWNLOAD"
@@ -79,9 +85,8 @@ findISO dryrun host arch edition release = do
         createSymlink localfile symlink
       else createSymlink localfile symlink
   where
-    checkURL :: String -> IO String
-    checkURL path = do
-      let url = host </> path
+    checkURL :: String -> Maybe Text -> IO String
+    checkURL url mprefix = do
       req <- parseRequest url
       mgr <- newManager tlsManagerSettings
       respHist <- responseOpenHistory req mgr
@@ -89,6 +94,7 @@ findISO dryrun host arch edition release = do
       let finalUrl = maybe url B.unpack redirect
       when (isJust redirect) $ putStr "Redirected to "
       let response = hrFinalResponse respHist
+      -- print finalUrl
       if statusCode (responseStatus response) /= 200
         then
         error' $ show $ responseStatus response
@@ -97,7 +103,8 @@ findISO dryrun host arch edition release = do
         let doc = parseBSChunks body
             cursor = fromDocument doc
             hrefs = concatMap (attribute "href") $ cursor $// element "a"
-            mfile = listToMaybe $ filter (editionPrefix edition `T.isPrefixOf`) hrefs :: Maybe Text
+            prefix = fromMaybe (editionPrefix edition) mprefix
+            mfile = listToMaybe $ filter (prefix `T.isPrefixOf`) hrefs :: Maybe Text
         case mfile of
           Nothing -> do
             print doc
