@@ -1,4 +1,4 @@
-cabal-version:       2.0
+cabal-version:       1.18
 name:                fedora-img-dl
 version:             0.1
 synopsis:            Fedora image download tool
@@ -12,7 +12,12 @@ category:            Utility
 build-type:          Simple
 extra-doc-files:     README.md
                    , CHANGELOG.md
-tested-with:         GHC == 8.4.4
+tested-with:         GHC == 7.6.3, GHC == 7.8.4, GHC == 7.10.3, GHC == 8.0.2,
+                     GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.4
+
+source-repository head
+  type:     git
+  location: https://github.com/juhp/fedora-img-dl.git
 
 executable fedora-img-dl
   main-is:             Main.hs
