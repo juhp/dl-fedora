@@ -10,7 +10,8 @@ import Network.HTTP.Types (decodePathSegments, extractPath, statusCode)
 
 import qualified Data.Text as T
 
-import Options.Applicative (auto)
+import Options.Applicative (auto, fullDesc, header, optional, progDescDoc)
+import qualified Options.Applicative.Help.Pretty as P
 import Text.HTML.DOM (parseBSChunks)
 import Text.XML.Cursor
 
@@ -35,8 +36,9 @@ data FedoraEdition = Cloud
 
 main :: IO ()
 main =
-  simpleCmdArgs Nothing "Fedora iso downloader" 
-    "Tool for downloading Fedora iso file images" $
+  let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
+             P.<$$> P.text "RELEASE can be 'rawhide', 'branched', 'respin', 'beta' or release version" in
+  simpleCmdArgsWithMods Nothing (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> strOptionalWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org" "https://download.fedoraproject.org"
