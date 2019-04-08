@@ -1,7 +1,14 @@
-import qualified Data.ByteString.Char8 as B
+{-# LANGUAGE CPP #-}
 
+#if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,8,0))
+#else
+import Control.Applicative ((<$>), (<*>))
+#endif
 import Control.Monad (when, unless)
+
+import qualified Data.ByteString.Char8 as B
 import Data.Maybe
+import Data.Semigroup ((<>))
 import Data.Text (Text)
 
 import Network.HTTP.Client (brConsume, hrFinalResponse, hrRedirects, newManager, parseRequest, responseBody, responseHeaders, responseOpenHistory, responseStatus)
