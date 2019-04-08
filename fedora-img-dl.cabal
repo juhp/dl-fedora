@@ -28,7 +28,7 @@ executable fedora-img-dl
                        hxt,
                        network-uri,
                        optparse-applicative,
-                       simple-cmd,
+                       simple-cmd >= 0.1.4,
                        simple-cmd-args >= 0.1.1,
                        text,
                        xdg-userdirs,

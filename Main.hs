@@ -14,7 +14,7 @@ import Options.Applicative (auto)
 import Text.HTML.DOM (parseBSChunks)
 import Text.XML.Cursor
 
-import SimpleCmd ((.$))
+import SimpleCmd (cmd_, error')
 import SimpleCmdArgs
 --import Paths_fedora_iso_dl (version)
 
@@ -59,7 +59,7 @@ findISO dryrun host arch edition release = do
   unless dryrun $ do
     dlDir <- getUserDir "DOWNLOAD"
     setCurrentDirectory dlDir
-    "curl" .$ ["-C", "-", "-L", "-O", fileurl]
+    cmd_ "curl" ["-C", "-", "-O", fileurl]
     let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ show release ++ "-latest" <.> takeExtension fileurl
     symExists <- doesFileExist symlink
     if symExists
@@ -82,7 +82,7 @@ findISO dryrun host arch edition release = do
       let response = hrFinalResponse respHist
       if statusCode (responseStatus response) /= 200
         then
-        error $ show $ responseStatus response
+        error' $ show $ responseStatus response
         else do
         body <- brConsume $ responseBody response
         let doc = parseBSChunks body
@@ -92,7 +92,7 @@ findISO dryrun host arch edition release = do
         case mfile of
           Nothing -> do
             print doc
-            error $ "not found " ++ finalUrl
+            error' $ "not found " ++ finalUrl
           Just file ->
             return $ finalUrl </> T.unpack file
 
@@ -107,7 +107,7 @@ editionPrefix Server = "Fedora-Server-dvd"
 editionPrefix Silverblue = "Fedora-Silverblue-ostree"
 editionPrefix Everything = "Fedora-Everything-netinst"
 editionPrefix Container = "Fedora-Container-Base"
-editionPrefix _ = error "Edition not yet supported"
+editionPrefix _ = error' "Edition not yet supported"
 
 editionMedia :: FedoraEdition -> String
 editionMedia Container = "images"
