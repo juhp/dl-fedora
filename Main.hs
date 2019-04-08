@@ -18,8 +18,9 @@ import SimpleCmd (cmd_, error')
 import SimpleCmdArgs
 --import Paths_fedora_iso_dl (version)
 
-import System.Directory (createFileLink, doesFileExist, getSymbolicLinkTarget,
-                         removeFile, setCurrentDirectory)
+import System.Directory (createFileLink, doesFileExist, getPermissions,
+                         getSymbolicLinkTarget, removeFile, setCurrentDirectory,
+                         writable)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath (takeExtension, takeFileName)
 
@@ -59,16 +60,22 @@ findISO dryrun host arch edition release = do
   unless dryrun $ do
     dlDir <- getUserDir "DOWNLOAD"
     setCurrentDirectory dlDir
+    let localfile = takeFileName fileurl
+    exists <- doesFileExist localfile
+    when exists $ do
+      putStrLn "Image file already exists"
+      canwrite <- writable <$> getPermissions localfile
+      unless canwrite $ error' "file does have write permission, aborting!"
     cmd_ "curl" ["-C", "-", "-O", fileurl]
     let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ show release ++ "-latest" <.> takeExtension fileurl
     symExists <- doesFileExist symlink
     if symExists
       then do
-      tgt <- getSymbolicLinkTarget symlink
-      unless (tgt == takeFileName fileurl) $ do
+      lnktgt <- getSymbolicLinkTarget symlink
+      unless (lnktgt == localfile) $ do
         removeFile symlink
-        createSymlink (takeFileName fileurl) symlink
-      else createSymlink (takeFileName fileurl) symlink
+        createSymlink localfile symlink
+      else createSymlink localfile symlink
   where
     checkURL :: String -> IO String
     checkURL path = do
