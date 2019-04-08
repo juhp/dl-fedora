@@ -5,6 +5,8 @@ synopsis:            Fedora image download tool
 description:         Tool to download Fedora iso and image files
 license:             GPL-3
 license-file:        LICENSE
+homepage:            https://github.com/juhp/fedora-img-dl
+bug-reports:         https://github.com/juhp/fedora-img-dl/issues
 author:              Jens Petersen
 maintainer:          juhpetersen@gmail.com
 copyright:           2019 Jens Petersen
