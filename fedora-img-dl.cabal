@@ -35,6 +35,8 @@ executable fedora-img-dl
                        unix,
                        xdg-userdirs,
                        xml-conduit
+  if impl(ghc<8.0)
+      Build-depends: semigroups
 
   ghc-options:         -fwarn-missing-signatures
                        -Wall
