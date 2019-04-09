@@ -7,6 +7,7 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
+import Data.List (isPrefixOf)
 import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.Text (Text)
