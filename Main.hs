@@ -82,15 +82,16 @@ findISO dryrun mhost arch edition release = do
       canwrite <- writable <$> getPermissions localfile
       unless canwrite $ error' "file does have write permission, aborting!"
     cmd_ "curl" ["-C", "-", "-O", fileurl]
-    let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ show release ++ "-latest" <.> takeExtension fileurl
-    symExists <- doesFileExist symlink
-    if symExists
-      then do
-      lnktgt <- readSymbolicLink symlink
-      unless (lnktgt == localfile) $ do
-        removeFile symlink
-        createSymlink localfile symlink
-      else createSymlink localfile symlink
+    unless ("releases" `isPrefixOf` relpath) $ do
+      let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ show release ++ "-latest" <.> takeExtension fileurl
+      symExists <- doesFileExist symlink
+      if symExists
+        then do
+        lnktgt <- readSymbolicLink symlink
+        unless (lnktgt == localfile) $ do
+          removeFile symlink
+          createSymlink localfile symlink
+        else createSymlink localfile symlink
   where
     checkURL :: String -> Maybe Text -> IO String
     checkURL url mprefix = do
