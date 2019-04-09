@@ -25,3 +25,6 @@ copy:
 
 rpm: dist/$(NAME)-$(VERSION).tar.gz
 	rpmbuild -ba --define '_sourcedir dist' $(NAME).spec
+
+srpm: dist/$(NAME)-$(VERSION).tar.gz
+	rpmbuild -bs --define '_sourcedir dist' $(NAME).spec
