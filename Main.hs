@@ -7,7 +7,7 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
-import Data.List (isPrefixOf)
+import Data.Char (isDigit)
 import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.Text (Text)
@@ -45,7 +45,7 @@ data FedoraEdition = Cloud
 main :: IO ()
 main =
   let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
-             P.<$$> P.text "RELEASE can be 'rawhide', 'branched', 'respin', 'beta' or release version" in
+             P.<$$> P.text "RELEASE can be 'rawhide', 'respin', 'beta' or release version" in
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> switchWith 'n' "dry-run" "Don't actually download anything"
@@ -61,8 +61,9 @@ findISO dryrun mhost arch edition release = do
           "rawhide" -> (Nothing, "development/rawhide", Nothing)
           "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just "F29-WORK-x86_64")
           "beta" -> (Nothing ,"releases/test/30_Beta", Nothing) -- FIXME: navigate!
-          rel | rel `elem` ["30", "branched"] -> (Nothing, "development/30", Nothing) -- FIXME: navigate!
-          _ -> (Nothing, "releases" </> release, Nothing)
+          "30" -> (Nothing, "development/30", Nothing) -- FIXME: navigate!
+          rel | all isDigit rel -> (Nothing, "releases" </> release, Nothing)
+          _ -> error' "Unknown release"
   when (isJust mlocn && isJust mhost && mlocn /= mhost) $
     error' "Cannot specify host for this image"
   let host = fromMaybe "https://download.fedoraproject.org" $
