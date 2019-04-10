@@ -84,7 +84,7 @@ findISO dryrun mhost arch edition release = do
       unless canwrite $ error' "file does have write permission, aborting!"
     cmd_ "curl" ["-C", "-", "-O", fileurl]
     unless ("releases" `isPrefixOf` relpath) $ do
-      let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ show release ++ "-latest" <.> takeExtension fileurl
+      let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ release ++ "-latest" <.> takeExtension fileurl
       symExists <- doesFileExist symlink
       if symExists
         then do
