@@ -33,8 +33,6 @@ executable fedora-img-dl
                        http-client,
                        http-client-tls,
                        http-types,
-                       hxt,
-                       network-uri,
                        optparse-applicative,
                        simple-cmd >= 0.1.4,
                        simple-cmd-args >= 0.1.1,
