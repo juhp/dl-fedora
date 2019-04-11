@@ -11,27 +11,28 @@ import Data.Char (isDigit)
 import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.Text (Text)
-
-import Network.HTTP.Client (brConsume, hrFinalResponse, hrRedirects, newManager, parseRequest, responseBody, responseHeaders, responseOpenHistory, responseStatus)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import Network.HTTP.Types (decodePathSegments, extractPath, statusCode)
-
 import qualified Data.Text as T
+
+import Network.HTTP.Client (newManager)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
+import Network.HTTP.Types (decodePathSegments, extractPath)
+
+import Network.HTTP.Directory
 
 import Options.Applicative (auto, fullDesc, header, optional, progDescDoc)
 import qualified Options.Applicative.Help.Pretty as P
-import Text.HTML.DOM (parseBSChunks)
-import Text.XML.Cursor
+
+import Paths_fedora_img_dl (version)
 
 import SimpleCmd (cmd_, error')
 import SimpleCmdArgs
-import Paths_fedora_img_dl (version)
 
 import System.Directory (doesFileExist, getPermissions, removeFile,
                          setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath (takeExtension, takeFileName, (</>), (<.>))
-import System.Posix.Files (createSymbolicLink, readSymbolicLink)
+import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
+                           readSymbolicLink)
 
 data FedoraEdition = Cloud
                    | Container
@@ -72,62 +73,63 @@ findISO dryrun mhost arch edition release = do
                 then "pub/fedora/linux"
                 else ""
       url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition ++ "/"
-  fileurl <- checkURL url mprefix
-  putStrLn fileurl
+  (fileurl, remotesize) <- findURL url mprefix
+  dlDir <- getUserDir "DOWNLOAD"
   unless dryrun $ do
-    dlDir <- getUserDir "DOWNLOAD"
     setCurrentDirectory dlDir
-    let localfile = takeFileName fileurl
-        symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ release ++ "-latest" <.> takeExtension fileurl
-    exists <- doesFileExist localfile
-    if exists
+  let localfile = takeFileName fileurl
+      symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ release ++ "-latest" <.> takeExtension fileurl
+  exists <- doesFileExist localfile
+  if exists
+    then do
+    filestatus <- getFileStatus localfile
+    let localsize = fileSize filestatus
+    if (Just (fromIntegral localsize) == remotesize)
       then do
-      symExists <- doesFileExist symlink
-      when symExists $ do
-        lnktgt <- readSymbolicLink symlink
-        if lnktgt == localfile
-          then putStrLn $ localfile ++ " already exists (delete symlink to continue download)"
-          else do
-          canwrite <- writable <$> getPermissions localfile
-          unless canwrite $ error' "file does have write permission, aborting!"
-          cmd_ "curl" ["-C", "-", "-O", fileurl]
-          createSymlink True localfile symlink
+      putStrLn "File already fully downloaded"
+      unless dryrun $ updateSymlink localfile symlink
       else do
+      unless dryrun $ do
+        canwrite <- writable <$> getPermissions localfile
+        unless canwrite $ error' "file does have write permission, aborting!"
+        cmd_ "curl" ["-C", "-", "-O", fileurl]
+        updateSymlink localfile symlink
+    else do
+    unless dryrun $ do
       cmd_ "curl" ["-C", "-", "-O", fileurl]
-      createSymlink False localfile symlink
+      updateSymlink localfile symlink
   where
-    checkURL :: String -> Maybe Text -> IO String
-    checkURL url mprefix = do
-      req <- parseRequest url
+    findURL :: String -> Maybe Text -> IO (String, Maybe Integer)
+    findURL url mprefix = do
       mgr <- newManager tlsManagerSettings
-      respHist <- responseOpenHistory req mgr
-      let redirect = listToMaybe . reverse $ mapMaybe (lookup "Location" . responseHeaders . snd) $ hrRedirects respHist
+      redirect <- httpRedirect mgr url
       let finalUrl = maybe url B.unpack redirect
       when (isJust redirect) $ putStr "Redirected to "
-      let response = hrFinalResponse respHist
-      -- print finalUrl
-      if statusCode (responseStatus response) /= 200
-        then
-        error' $ show $ responseStatus response
-        else do
-        body <- brConsume $ responseBody response
-        let doc = parseBSChunks body
-            cursor = fromDocument doc
-            hrefs = concatMap (attribute "href") $ cursor $// element "a"
-            prefix = fromMaybe (editionPrefix edition) mprefix
-            mfile = listToMaybe $ filter (prefix `T.isPrefixOf`) hrefs :: Maybe Text
-        case mfile of
-          Nothing -> do
-            print doc
-            error' $ "not found " ++ finalUrl
-          Just file ->
-            return $ finalUrl </> T.unpack file
+      hrefs <- httpDirectory mgr finalUrl
+      let prefix = fromMaybe (editionPrefix edition) mprefix
+          mfile = listToMaybe $ filter (prefix `T.isPrefixOf`) hrefs :: Maybe Text
+      case mfile of
+        Nothing ->
+          error' $ "not found " ++ finalUrl
+        Just file -> do
+          putStrLn finalUrl
+          let finalfile = finalUrl </> T.unpack file
+          size <- httpFileSize mgr finalfile
+          return (finalfile, size)
 
-    createSymlink :: Bool -> FilePath -> FilePath -> IO ()
-    createSymlink remove tgt symlink = do
-      when remove $ removeFile symlink
-      createSymbolicLink tgt symlink
-      putStrLn $ symlink ++ " -> " ++ tgt
+    updateSymlink :: FilePath -> FilePath -> IO ()
+    updateSymlink target symlink = do
+      symExists <- doesFileExist symlink
+      if symExists
+        then do
+        linktarget <- readSymbolicLink symlink
+        if linktarget /= target
+          then do
+          removeFile symlink
+          createSymbolicLink target symlink
+          else return ()
+        else createSymbolicLink target symlink
+      putStrLn $ unwords [symlink, "->", target]
 
 editionPrefix :: FedoraEdition -> Text
 editionPrefix Workstation = "Fedora-Workstation-Live"

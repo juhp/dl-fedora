@@ -29,17 +29,16 @@ executable fedora-img-dl
                        bytestring,
                        directory,
                        filepath,
-                       html-conduit,
                        http-client,
                        http-client-tls,
+                       http-directory,
                        http-types,
                        optparse-applicative,
                        simple-cmd >= 0.1.4,
                        simple-cmd-args >= 0.1.1,
                        text,
                        unix,
-                       xdg-userdirs,
-                       xml-conduit
+                       xdg-userdirs
   if impl(ghc<8.0)
       Build-depends: semigroups
 
