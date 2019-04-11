@@ -22,9 +22,3 @@ git-push:
 
 copy:
 	cp -p dist/$(NAME)-$(VERSION).tar.gz ~/fedora/haskell/ghc-$(NAME)/
-
-rpm: dist/$(NAME)-$(VERSION).tar.gz
-	rpmbuild -ba --define '_sourcedir dist' $(NAME).spec
-
-srpm: dist/$(NAME)-$(VERSION).tar.gz
-	rpmbuild -bs --define '_sourcedir dist' $(NAME).spec
