@@ -78,21 +78,23 @@ findISO dryrun mhost arch edition release = do
     dlDir <- getUserDir "DOWNLOAD"
     setCurrentDirectory dlDir
     let localfile = takeFileName fileurl
+        symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ release ++ "-latest" <.> takeExtension fileurl
     exists <- doesFileExist localfile
-    when exists $ do
-      putStrLn "Image file already exists"
-      canwrite <- writable <$> getPermissions localfile
-      unless canwrite $ error' "file does have write permission, aborting!"
-    cmd_ "curl" ["-C", "-", "-O", fileurl]
-    let symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ release ++ "-latest" <.> takeExtension fileurl
-    symExists <- doesFileExist symlink
-    if symExists
+    if exists
       then do
-      lnktgt <- readSymbolicLink symlink
-      unless (lnktgt == localfile) $ do
-        removeFile symlink
-        createSymlink localfile symlink
-      else createSymlink localfile symlink
+      symExists <- doesFileExist symlink
+      when symExists $ do
+        lnktgt <- readSymbolicLink symlink
+        if lnktgt == localfile
+          then putStrLn $ localfile ++ " already exists (delete symlink to continue download)"
+          else do
+          canwrite <- writable <$> getPermissions localfile
+          unless canwrite $ error' "file does have write permission, aborting!"
+          cmd_ "curl" ["-C", "-", "-O", fileurl]
+          createSymlink True localfile symlink
+      else do
+      cmd_ "curl" ["-C", "-", "-O", fileurl]
+      createSymlink False localfile symlink
   where
     checkURL :: String -> Maybe Text -> IO String
     checkURL url mprefix = do
@@ -121,8 +123,9 @@ findISO dryrun mhost arch edition release = do
           Just file ->
             return $ finalUrl </> T.unpack file
 
-    createSymlink :: FilePath -> FilePath -> IO ()
-    createSymlink tgt symlink = do
+    createSymlink :: Bool -> FilePath -> FilePath -> IO ()
+    createSymlink remove tgt symlink = do
+      when remove $ removeFile symlink
       createSymbolicLink tgt symlink
       putStrLn $ symlink ++ " -> " ++ tgt
 
