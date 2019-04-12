@@ -27,7 +27,8 @@ import Paths_fedora_img_dl (version)
 import SimpleCmd (cmd_, error')
 import SimpleCmdArgs
 
-import System.Directory (doesFileExist, getPermissions, removeFile,
+import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
+                         doesFileExist, getPermissions, removeFile,
                          setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath (takeExtension, takeFileName, (</>), (<.>))
@@ -77,7 +78,13 @@ findISO dryrun mhost arch edition tgtrel = do
       prefix = fromMaybe (editionPrefix edition <-> arch <> maybe "" ("" <->) mrelease) mprefix
   (fileurl, remotesize) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
-  unless dryrun $ setCurrentDirectory dlDir
+  if dryrun
+    then do
+    dirExists <- doesDirectoryExist dlDir
+    when dirExists $ setCurrentDirectory dlDir
+    else do
+    createDirectoryIfMissing False dlDir
+    setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
       symlink = dlDir </> prefix ++ "-latest" <.> takeExtension fileurl
   putStrLn localfile
@@ -89,17 +96,15 @@ findISO dryrun mhost arch edition tgtrel = do
     if Just (fromIntegral localsize) == remotesize
       then do
       putStrLn "File already fully downloaded"
-      unless dryrun $ updateSymlink localfile symlink
-      else
-      unless dryrun $ do
-        canwrite <- writable <$> getPermissions localfile
-        unless canwrite $ error' "file does have write permission, aborting!"
-        cmd_ "curl" ["-C", "-", "-O", fileurl]
-        updateSymlink localfile symlink
-    else
-    unless dryrun $ do
-      cmd_ "curl" ["-C", "-", "-O", fileurl]
       updateSymlink localfile symlink
+      else do
+      canwrite <- writable <$> getPermissions localfile
+      unless canwrite $ error' "file does have write permission, aborting!"
+      downloadFile fileurl
+      updateSymlink localfile symlink
+    else do
+    downloadFile fileurl
+    updateSymlink localfile symlink
   where
     findURL :: String -> String -> IO (String, Maybe Integer)
     findURL url prefix = do
@@ -124,11 +129,16 @@ findISO dryrun mhost arch edition tgtrel = do
       if symExists
         then do
         linktarget <- readSymbolicLink symlink
-        when (linktarget /= target) $ do
-          removeFile symlink
-          createSymbolicLink target symlink
-        else createSymbolicLink target symlink
+        when (linktarget /= target) $
+          unless dryrun $ do
+            removeFile symlink
+            createSymbolicLink target symlink
+        else unless dryrun $ createSymbolicLink target symlink
       putStrLn $ unwords [symlink, "->", target]
+
+    downloadFile :: String -> IO ()
+    downloadFile url =
+      unless dryrun $ cmd_ "curl" ["-C", "-", "-O", url]
 
 editionPrefix :: FedoraEdition -> String
 editionPrefix Workstation = "Fedora-Workstation-Live"
