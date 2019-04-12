@@ -7,7 +7,7 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
-import Data.Char (isDigit)
+import Data.Char (isDigit, toLower)
 import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.Text (Text)
@@ -35,14 +35,28 @@ import System.FilePath (takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
+import Text.Read
+import qualified Text.ParserCombinators.ReadP as R
+import qualified Text.ParserCombinators.ReadPrec as RP
+
 data FedoraEdition = Cloud
                    | Container
                    | Everything
                    | Server
                    | Silverblue
-                   | Spins
                    | Workstation
- deriving (Read, Show)
+ deriving (Show, Enum, Bounded)
+
+instance Read FedoraEdition where
+  readPrec = do
+    s <- look
+    let e = map toLower s
+        editionMap =
+          map (\ ed -> (map toLower (show ed), ed)) [minBound..maxBound]
+        res = lookup e editionMap
+    case res of
+      Nothing -> RP.pfail
+      Just ed -> RP.lift (R.string e) >> return ed
 
 main :: IO ()
 main =
