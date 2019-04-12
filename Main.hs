@@ -56,14 +56,14 @@ main =
     <*> strArg "RELEASE"
 
 findISO :: Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-findISO dryrun mhost arch edition release = do
-  let (mlocn, relpath, mprefix) =
-        case release of
-          "rawhide" -> (Nothing, "development/rawhide", Nothing)
-          "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just "F29-WORK-x86_64")
-          "beta" -> (Nothing ,"releases/test/30_Beta", Nothing) -- FIXME: navigate!
-          "30" -> (Nothing, "development/30", Nothing) -- FIXME: navigate!
-          rel | all isDigit rel -> (Nothing, "releases" </> release, Nothing)
+findISO dryrun mhost arch edition tgtrel = do
+  let (mlocn, relpath, mprefix, mrelease) =
+        case tgtrel of
+          "rawhide" -> (Nothing, "development/rawhide", Nothing, Just "Rawhide")
+          "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just "F29-WORK-x86_64", Nothing)
+          "beta" -> (Nothing ,"releases/test/30_Beta", Nothing, Just "30_Beta") -- FIXME: navigate!
+          "30" -> (Nothing, "development/30", Nothing, Just "30") -- FIXME: navigate!
+          rel | all isDigit rel -> (Nothing, "releases" </> rel, Nothing, Just rel)
           _ -> error' "Unknown release"
   when (isJust mlocn && isJust mhost && mlocn /= mhost) $
     error' "Cannot specify host for this image"
@@ -73,41 +73,41 @@ findISO dryrun mhost arch edition release = do
                 then "pub/fedora/linux"
                 else ""
       url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition ++ "/"
-  (fileurl, remotesize) <- findURL url mprefix
+      prefix = fromMaybe (editionPrefix edition <-> arch <> maybe "" ("" <->) mrelease) mprefix
+  (fileurl, remotesize) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
-  unless dryrun $ do
-    setCurrentDirectory dlDir
+  unless dryrun $ setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
-      symlink = dlDir </> T.unpack (editionPrefix edition) ++ "-" ++ arch ++ "-" ++ release ++ "-latest" <.> takeExtension fileurl
+      symlink = dlDir </> prefix ++ "-latest" <.> takeExtension fileurl
+  putStrLn localfile
   exists <- doesFileExist localfile
   if exists
     then do
     filestatus <- getFileStatus localfile
     let localsize = fileSize filestatus
-    if (Just (fromIntegral localsize) == remotesize)
+    if Just (fromIntegral localsize) == remotesize
       then do
       putStrLn "File already fully downloaded"
       unless dryrun $ updateSymlink localfile symlink
-      else do
+      else
       unless dryrun $ do
         canwrite <- writable <$> getPermissions localfile
         unless canwrite $ error' "file does have write permission, aborting!"
         cmd_ "curl" ["-C", "-", "-O", fileurl]
         updateSymlink localfile symlink
-    else do
+    else
     unless dryrun $ do
       cmd_ "curl" ["-C", "-", "-O", fileurl]
       updateSymlink localfile symlink
   where
-    findURL :: String -> Maybe Text -> IO (String, Maybe Integer)
-    findURL url mprefix = do
+    findURL :: String -> String -> IO (String, Maybe Integer)
+    findURL url prefix = do
       mgr <- newManager tlsManagerSettings
       redirect <- httpRedirect mgr url
       let finalUrl = maybe url B.unpack redirect
       when (isJust redirect) $ putStr "Redirected to "
       hrefs <- httpDirectory mgr finalUrl
-      let prefix = fromMaybe (editionPrefix edition) mprefix
-          mfile = listToMaybe $ filter (prefix `T.isPrefixOf`) hrefs :: Maybe Text
+      let mfile = listToMaybe $ filter (T.pack prefix `T.isPrefixOf`) hrefs :: Maybe Text
       case mfile of
         Nothing ->
           error' $ "not found " ++ finalUrl
@@ -123,15 +123,13 @@ findISO dryrun mhost arch edition release = do
       if symExists
         then do
         linktarget <- readSymbolicLink symlink
-        if linktarget /= target
-          then do
+        when (linktarget /= target) $ do
           removeFile symlink
           createSymbolicLink target symlink
-          else return ()
         else createSymbolicLink target symlink
       putStrLn $ unwords [symlink, "->", target]
 
-editionPrefix :: FedoraEdition -> Text
+editionPrefix :: FedoraEdition -> String
 editionPrefix Workstation = "Fedora-Workstation-Live"
 editionPrefix Server = "Fedora-Server-dvd"
 editionPrefix Silverblue = "Fedora-Silverblue-ostree"
@@ -142,3 +140,6 @@ editionPrefix _ = error' "Edition not yet supported"
 editionMedia :: FedoraEdition -> String
 editionMedia Container = "images"
 editionMedia _ = "iso"
+
+(<->) :: String -> String -> String
+t1 <-> t2 = t1 <> "-" <> t2
