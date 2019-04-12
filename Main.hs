@@ -67,7 +67,7 @@ main =
     <$> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
     <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
-    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition (Workstation [default], Server, ...)" Workstation
+    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default], server, ..." Workstation
     <*> strArg "RELEASE"
 
 findISO :: Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
