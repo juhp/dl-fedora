@@ -60,9 +60,10 @@ findISO dryrun mhost arch edition tgtrel = do
   let (mlocn, relpath, mprefix, mrelease) =
         case tgtrel of
           "rawhide" -> (Nothing, "development/rawhide", Nothing, Just "Rawhide")
+           -- FIXME: version hardcoding for respin, beta, and 30
           "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just "F29-WORK-x86_64", Nothing)
-          "beta" -> (Nothing ,"releases/test/30_Beta", Nothing, Just "30_Beta") -- FIXME: navigate!
-          "30" -> (Nothing, "development/30", Nothing, Just "30") -- FIXME: navigate!
+          "beta" -> (Nothing ,"releases/test/30_Beta", Nothing, Just "30_Beta") -- FIXME: hardcoding
+          "30" -> (Nothing, "development/30", Nothing, Just "30") -- FIXME: hardcoding
           rel | all isDigit rel -> (Nothing, "releases" </> rel, Nothing, Just rel)
           _ -> error' "Unknown release"
   when (isJust mlocn && isJust mhost && mlocn /= mhost) $

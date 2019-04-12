@@ -1,6 +1,6 @@
 cabal-version:       1.18
 name:                fedora-img-dl
-version:             0.1
+version:             0.2
 synopsis:            Fedora image download tool
 description:         Tool to download Fedora iso and image files
 license:             GPL-3
@@ -46,4 +46,3 @@ executable fedora-img-dl
                        -Wall
 
   default-language:    Haskell2010
-  default-extensions:  OverloadedStrings
