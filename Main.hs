@@ -8,6 +8,7 @@ import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit, toLower)
+import Data.List (intercalate)
 import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.Text (Text)
@@ -88,8 +89,8 @@ findISO dryrun mhost arch edition tgtrel = do
       toppath = if null ((decodePathSegments . extractPath) (B.pack host))
                 then "pub/fedora/linux"
                 else ""
-      url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition ++ "/"
-      prefix = fromMaybe (editionPrefix edition <-> arch <> maybe "" ("" <->) mrelease) mprefix
+      url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition <> "/"
+      prefix = fromMaybe (intercalate "-" ([editionPrefix edition, arch] <> maybeToList mrelease)) mprefix
   (fileurl, remotesize) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
@@ -165,6 +166,3 @@ editionPrefix _ = error' "Edition not yet supported"
 editionMedia :: FedoraEdition -> String
 editionMedia Container = "images"
 editionMedia _ = "iso"
-
-(<->) :: String -> String -> String
-t1 <-> t2 = t1 <> "-" <> t2
