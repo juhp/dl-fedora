@@ -32,7 +32,7 @@ import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
                          doesFileExist, getPermissions, removeFile,
                          setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (takeExtension, takeFileName, (</>), (<.>))
+import System.FilePath (joinPath, takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -89,7 +89,7 @@ findISO dryrun mhost arch edition tgtrel = do
       toppath = if null ((decodePathSegments . extractPath) (B.pack host))
                 then "pub/fedora/linux"
                 else ""
-      url = if isJust mlocn then host </> relpath else host </> toppath </> relpath </> show edition </> arch </> editionMedia edition <> "/"
+      url = if isJust mlocn then host </> relpath else joinPath [host, toppath, relpath, show edition, arch, editionMedia edition <> "/"]
       prefix = fromMaybe (intercalate "-" ([editionPrefix edition, arch] <> maybeToList mrelease)) mprefix
   (fileurl, remotesize) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
@@ -101,7 +101,7 @@ findISO dryrun mhost arch edition tgtrel = do
     createDirectoryIfMissing False dlDir
     setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
-      symlink = dlDir </> prefix ++ "-latest" <.> takeExtension fileurl
+      symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
   putStrLn localfile
   exists <- doesFileExist localfile
   if exists
@@ -131,7 +131,7 @@ findISO dryrun mhost arch edition tgtrel = do
       let mfile = listToMaybe $ filter (T.pack prefix `T.isPrefixOf`) hrefs :: Maybe Text
       case mfile of
         Nothing ->
-          error' $ "not found " ++ finalUrl
+          error' $ "not found " <> finalUrl
         Just file -> do
           putStrLn finalUrl
           let finalfile = finalUrl </> T.unpack file
