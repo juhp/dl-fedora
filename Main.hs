@@ -137,16 +137,16 @@ findISO mhost dryrun arch edition tgtrel = do
           return (finalfile, size)
 
     updateSymlink :: FilePath -> FilePath -> IO ()
-    updateSymlink target symlink = do
+    updateSymlink target symlink =
+      unless dryrun $ do
       symExists <- doesFileExist symlink
       if symExists
         then do
         linktarget <- readSymbolicLink symlink
-        when (linktarget /= target) $
-          unless dryrun $ do
+        when (linktarget /= target) $ do
             removeFile symlink
             createSymbolicLink target symlink
-        else unless dryrun $ createSymbolicLink target symlink
+        else createSymbolicLink target symlink
       putStrLn $ unwords [symlink, "->", target]
 
     downloadFile :: String -> IO ()
