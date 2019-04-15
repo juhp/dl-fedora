@@ -10,13 +10,13 @@ By default it targets the Workstation edition of Fedora.
 
 Usage example:
 
-`fedora-img-dl rawhide` downloads the latest Fedora Rawhide Workstation Live iso
+`fedora-img-dl rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`fedora-img-dl respin` downloads the latest Live Workstation respin
+`fedora-img-dl respin` : downloads the latest Live Workstation respin
 
-`fedora-img-dl -e silverblue 30` downloads Fedora 30 Silverblue iso
+`fedora-img-dl -e silverblue 30` : downloads Fedora 30 Silverblue iso
 
-`fedora-img-dl --edition server --arch aarch64 29` will bring down the F29 Server iso
+`fedora-img-dl --edition server --arch aarch64 29` : will bring down the F29 Server iso
 
 (Currently Spins are not yet supported.)
 

@@ -3,6 +3,7 @@ name:                fedora-img-dl
 version:             0.2
 synopsis:            Fedora image download tool
 description:         Tool to download Fedora iso and image files
+-- can change to GPL-3.0-or-later with Cabal-2
 license:             GPL-3
 license-file:        LICENSE
 homepage:            https://github.com/juhp/fedora-img-dl
