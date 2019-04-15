@@ -65,14 +65,14 @@ main =
              P.<$$> P.text "RELEASE can be 'rawhide', 'respin', 'beta' or release version" in
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
-    <$> switchWith 'n' "dry-run" "Don't actually download anything"
-    <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
+    <$> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
+    <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default], server, ..." Workstation
     <*> strArg "RELEASE"
 
-findISO :: Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-findISO dryrun mhost arch edition tgtrel = do
+findISO :: Maybe String -> Bool -> String -> FedoraEdition -> String -> IO ()
+findISO mhost dryrun arch edition tgtrel = do
   let (mlocn, relpath, mprefix, mrelease) =
         case tgtrel of
           "rawhide" -> (Nothing, "development/rawhide", Nothing, Just "Rawhide")
