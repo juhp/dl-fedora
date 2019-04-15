@@ -56,7 +56,7 @@ instance Read FedoraEdition where
           map (\ ed -> (map toLower (show ed), ed)) [minBound..maxBound]
         res = lookup e editionMap
     case res of
-      Nothing -> RP.pfail
+      Nothing -> error' "unknown edition" >> RP.pfail
       Just ed -> RP.lift (R.string e) >> return ed
 
 main :: IO ()
