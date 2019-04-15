@@ -102,7 +102,6 @@ findISO mhost dryrun arch edition tgtrel = do
     setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
       symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
-  putStrLn localfile
   exists <- doesFileExist localfile
   if exists
     then do
@@ -126,15 +125,14 @@ findISO mhost dryrun arch edition tgtrel = do
       mgr <- newManager tlsManagerSettings
       redirect <- httpRedirect mgr url
       let finalUrl = maybe url B.unpack redirect
-      when (isJust redirect) $ putStr "Redirected to "
       hrefs <- httpDirectory mgr finalUrl
       let mfile = listToMaybe $ filter (T.pack prefix `T.isPrefixOf`) hrefs :: Maybe Text
       case mfile of
         Nothing ->
           error' $ "not found " <> finalUrl
         Just file -> do
-          putStrLn finalUrl
           let finalfile = finalUrl </> T.unpack file
+          putStrLn finalfile
           size <- httpFileSize mgr finalfile
           return (finalfile, size)
 
