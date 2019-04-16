@@ -54,7 +54,7 @@ data FedoraEdition = Cloud
                    | Mate_Compiz
                    | Soas
                    | Xfce
- deriving (Show, Enum, Bounded)
+ deriving (Show, Enum, Bounded, Eq)
 
 instance Read FedoraEdition where
   readPrec = do
@@ -66,6 +66,9 @@ instance Read FedoraEdition where
     case res of
       Nothing -> error' "unknown edition" >> RP.pfail
       Just ed -> RP.lift (R.string e) >> return ed
+
+fedoraSpins :: [FedoraEdition]
+fedoraSpins = [Cinnamon ..]
 
 main :: IO ()
 main =
@@ -98,7 +101,7 @@ findISO mhost dryrun arch edition tgtrel = do
       toppath = if null ((decodePathSegments . extractPath) (B.pack host))
                 then "pub/fedora/linux"
                 else ""
-      url = if isJust mlocn then host </> relpath else joinPath [host, toppath, relpath, show edition, arch, editionMedia edition <> "/"]
+      url = if isJust mlocn then host </> relpath else joinPath [host, toppath, relpath, if edition `elem` fedoraSpins then "Spins" else show edition, arch, editionMedia edition <> "/"]
       prefix = fromMaybe (intercalate "-" (["Fedora", show edition, editionType edition, arch] <> maybeToList mrelease)) mprefix
   (fileurl, remotesize, mchecksum) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
