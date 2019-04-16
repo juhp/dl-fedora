@@ -1,6 +1,6 @@
 Release steps:
 
-1. update .cabal description
+1. update .cabal description and README
 2. update ChangeLog
 
 $ make git-tag
