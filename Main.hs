@@ -7,7 +7,7 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
-import Data.Char (isDigit, toLower)
+import Data.Char (isDigit, toLower, toUpper)
 import Data.List (intercalate)
 import Data.Maybe
 import Data.Semigroup ((<>))
@@ -40,12 +40,20 @@ import Text.Read
 import qualified Text.ParserCombinators.ReadP as R
 import qualified Text.ParserCombinators.ReadPrec as RP
 
+{-# ANN module "HLint: ignore Use camelCase" #-}
 data FedoraEdition = Cloud
                    | Container
                    | Everything
                    | Server
                    | Silverblue
                    | Workstation
+                   | Cinnamon
+                   | KDE
+                   | LXDE
+                   | LXQt
+                   | Mate_Compiz
+                   | Soas
+                   | Xfce
  deriving (Show, Enum, Bounded)
 
 instance Read FedoraEdition where
@@ -62,13 +70,14 @@ instance Read FedoraEdition where
 main :: IO ()
 main =
   let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
-             P.<$$> P.text "RELEASE can be 'rawhide', 'respin', 'beta' or release version" in
+             P.<$$> P.text ("RELEASE = " <> intercalate ", " ["rawhide", "respin", "beta", "or Release version"])
+             P.<$$> P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) in
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
-    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default], server, ..." Workstation
+    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default]" Workstation
     <*> strArg "RELEASE"
 
 findISO :: Maybe String -> Bool -> String -> FedoraEdition -> String -> IO ()
@@ -77,7 +86,7 @@ findISO mhost dryrun arch edition tgtrel = do
         case tgtrel of
           "rawhide" -> (Nothing, "development/rawhide", Nothing, Just "Rawhide")
            -- FIXME: version hardcoding for respin, beta, and 30
-          "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just "F29-WORK-x86_64", Nothing)
+          "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just ("F29-" <> liveRespin edition <> "-x86_64"), Nothing)
           "beta" -> (Nothing ,"releases/test/30_Beta", Nothing, Just "30_Beta") -- FIXME: hardcoding
           "30" -> (Nothing, "development/30", Nothing, Just "30") -- FIXME: hardcoding
           rel | all isDigit rel -> (Nothing, "releases" </> rel, Nothing, Just rel)
@@ -90,7 +99,7 @@ findISO mhost dryrun arch edition tgtrel = do
                 then "pub/fedora/linux"
                 else ""
       url = if isJust mlocn then host </> relpath else joinPath [host, toppath, relpath, show edition, arch, editionMedia edition <> "/"]
-      prefix = fromMaybe (intercalate "-" ([editionPrefix edition, arch] <> maybeToList mrelease)) mprefix
+      prefix = fromMaybe (intercalate "-" (["Fedora", show edition, editionType edition, arch] <> maybeToList mrelease)) mprefix
   (fileurl, remotesize, mchecksum) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
@@ -168,14 +177,17 @@ findISO mhost dryrun arch edition tgtrel = do
           putStrLn $ "Running sha256sum on " <> local
           cmd_ "sha256sum" ["--check", "--ignore-missing", local]
 
-editionPrefix :: FedoraEdition -> String
-editionPrefix Workstation = "Fedora-Workstation-Live"
-editionPrefix Server = "Fedora-Server-dvd"
-editionPrefix Silverblue = "Fedora-Silverblue-ostree"
-editionPrefix Everything = "Fedora-Everything-netinst"
-editionPrefix Container = "Fedora-Container-Base"
-editionPrefix _ = error' "Edition not yet supported"
+editionType :: FedoraEdition -> String
+editionType Server = "dvd"
+editionType Silverblue = "ostree"
+editionType Everything = "netinst"
+editionType Container = "Base"
+editionType _ = "Live"
 
 editionMedia :: FedoraEdition -> String
 editionMedia Container = "images"
 editionMedia _ = "iso"
+
+liveRespin :: FedoraEdition -> String
+liveRespin = take 4 . map toUpper . show
+

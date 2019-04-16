@@ -1,4 +1,3 @@
-- spin flavours
 - automate release versioning (rawhide, branched, respin, etc)
 - --replace (--delete?) option to delete old image?
 - configuration for user's defaults (mirror, edition, arch, etc)
