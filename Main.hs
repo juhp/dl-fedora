@@ -91,7 +91,7 @@ findISO mhost dryrun arch edition tgtrel = do
                 else ""
       url = if isJust mlocn then host </> relpath else joinPath [host, toppath, relpath, show edition, arch, editionMedia edition <> "/"]
       prefix = fromMaybe (intercalate "-" ([editionPrefix edition, arch] <> maybeToList mrelease)) mprefix
-  (fileurl, remotesize) <- findURL url prefix
+  (fileurl, remotesize, mchecksum) <- findURL url prefix
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
     then do
@@ -102,31 +102,18 @@ findISO mhost dryrun arch edition tgtrel = do
     setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
       symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
-  exists <- doesFileExist localfile
-  if exists
-    then do
-    filestatus <- getFileStatus localfile
-    let localsize = fileSize filestatus
-    if Just (fromIntegral localsize) == remotesize
-      then do
-      putStrLn "File already fully downloaded"
-      updateSymlink localfile symlink
-      else do
-      canwrite <- writable <$> getPermissions localfile
-      unless canwrite $ error' "file does have write permission, aborting!"
-      downloadFile fileurl
-      updateSymlink localfile symlink
-    else do
-    downloadFile fileurl
-    updateSymlink localfile symlink
+  downloadFile fileurl remotesize localfile
+  fileChecksum mchecksum
+  updateSymlink localfile symlink
   where
-    findURL :: String -> String -> IO (String, Maybe Integer)
+    findURL :: String -> String -> IO (String, Maybe Integer, Maybe String)
     findURL url prefix = do
       mgr <- newManager tlsManagerSettings
       redirect <- httpRedirect mgr url
       let finalUrl = maybe url B.unpack redirect
       hrefs <- httpDirectory mgr finalUrl
       let mfile = listToMaybe $ filter (T.pack prefix `T.isPrefixOf`) hrefs :: Maybe Text
+          mchecksum = listToMaybe $ filter (T.pack "CHECKSUM" `T.isSuffixOf`) hrefs
       case mfile of
         Nothing ->
           error' $ "not found " <> finalUrl
@@ -134,7 +121,7 @@ findISO mhost dryrun arch edition tgtrel = do
           let finalfile = finalUrl </> T.unpack file
           putStrLn finalfile
           size <- httpFileSize mgr finalfile
-          return (finalfile, size)
+          return (finalfile, size, (finalUrl </>) . T.unpack <$> mchecksum)
 
     updateSymlink :: FilePath -> FilePath -> IO ()
     updateSymlink target symlink =
@@ -146,12 +133,40 @@ findISO mhost dryrun arch edition tgtrel = do
         when (linktarget /= target) $ do
             removeFile symlink
             createSymbolicLink target symlink
-        else createSymbolicLink target symlink
-      putStrLn $ unwords [symlink, "->", target]
+            putStrLn $ unwords [symlink, "->", target]
+        else do
+        createSymbolicLink target symlink
+        putStrLn $ unwords [symlink, "->", target]
 
-    downloadFile :: String -> IO ()
-    downloadFile url =
-      unless dryrun $ cmd_ "curl" ["-C", "-", "-O", url]
+    downloadFile :: String -> Maybe Integer -> String -> IO ()
+    downloadFile url remotesize localfile = do
+      exists <- doesFileExist localfile
+      if exists
+        then do
+        localsize <- fileSize <$> getFileStatus localfile
+        if Just (fromIntegral localsize) == remotesize
+          then
+          putStrLn "File already fully downloaded"
+          else do
+          canwrite <- writable <$> getPermissions localfile
+          unless canwrite $ error' "file does have write permission, aborting!"
+          unless dryrun $
+            cmd_ "curl" ["-C", "-", "-O", url]
+        else
+        unless dryrun $
+        cmd_ "curl" ["-C", "-", "-O", url]
+
+    fileChecksum :: Maybe FilePath -> IO ()
+    fileChecksum mchecksum =
+      case mchecksum of
+        Nothing -> return ()
+        Just checksum -> do
+          let local = takeFileName checksum
+          exists <- doesFileExist local
+          unless exists $
+            cmd_ "curl" ["-C", "-", "-s", "-S", "-O", checksum]
+          putStrLn $ "Running sha256sum on " <> local
+          cmd_ "sha256sum" ["--check", "--ignore-missing", local]
 
 editionPrefix :: FedoraEdition -> String
 editionPrefix Workstation = "Fedora-Workstation-Live"
