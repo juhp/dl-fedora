@@ -19,4 +19,4 @@ Usage example:
 `fedora-img-dl --edition server --arch aarch64 29` : will bring down the F29 Server iso
 
 A symlink to the latest iso is also created:
-eg for rawhide it might be `Fedora-Workstation-Live-x86_64-Rawhide-latest.iso`.
+eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.
