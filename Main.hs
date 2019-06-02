@@ -14,8 +14,6 @@ import Data.Semigroup ((<>))
 import Data.Text (Text)
 import qualified Data.Text as T
 
-import Network.HTTP.Client (newManager)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Network.HTTP.Types (decodePathSegments, extractPath)
 
 import Network.HTTP.Directory
@@ -120,7 +118,7 @@ findISO mhost dryrun arch edition tgtrel = do
   where
     findURL :: String -> String -> IO (String, Maybe Integer, Maybe String)
     findURL url prefix = do
-      mgr <- newManager tlsManagerSettings
+      mgr <- httpManager
       redirect <- httpRedirect mgr url
       let finalUrl = maybe url B.unpack redirect
       hrefs <- httpDirectory mgr finalUrl
