@@ -8,7 +8,7 @@ import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit, toLower, toUpper)
-import Data.List (intercalate)
+import Data.List
 import Data.Maybe
 import Data.Semigroup ((<>))
 import Data.Text (Text)
@@ -23,7 +23,7 @@ import qualified Options.Applicative.Help.Pretty as P
 
 import Paths_fedora_img_dl (version)
 
-import SimpleCmd (cmd_, error')
+import SimpleCmd (cmd_, error', grep_, shell_, shellBool)
 import SimpleCmdArgs
 
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
@@ -83,17 +83,18 @@ main =
 
 findISO :: Maybe String -> Bool -> String -> FedoraEdition -> String -> IO ()
 findISO mhost dryrun arch edition tgtrel = do
-  let (mlocn, relpath, mprefix, mrelease) =
+  (mlocn, relpath, mprefix, mrelease) <-
         case tgtrel of
-          "rawhide" -> (Nothing, "development/rawhide", Nothing, Just "Rawhide")
+          "rawhide" -> return (Nothing, "development/rawhide", Nothing, Just "Rawhide")
            -- FIXME: version hardcoding for respin, beta, and 30
-          "respin" -> (Just "https://dl.fedoraproject.org", "pub/alt/live-respins/", Just ("F29-" <> liveRespin edition <> "-x86_64"), Nothing)
-          "beta" -> (Nothing ,"releases/test/30_Beta", Nothing, Just "30_Beta") -- FIXME: hardcoding
-          "30" -> (Nothing, "development/30", Nothing, Just "30") -- FIXME: hardcoding
-          rel | all isDigit rel -> (Nothing, "releases" </> rel, Nothing, Just rel)
+          "respin" -> do
+            let mlocn = Just "https://dl.fedoraproject.org"
+            when (isJust mhost && mlocn /= mhost) $
+              error' "Cannot specify host for this image"
+            return (mlocn, "pub/alt/live-respins/", Just ("F29-" <> liveRespin edition <> "-x86_64"), Nothing)
+          "beta" -> return (Nothing ,"releases/test/30_Beta", Nothing, Just "30_Beta") -- FIXME: hardcoding
+          rel | all isDigit rel -> return (Nothing, "releases" </> rel, Nothing, Just rel)
           _ -> error' "Unknown release"
-  when (isJust mlocn && isJust mhost && mlocn /= mhost) $
-    error' "Cannot specify host for this image"
   let host = fromMaybe "https://download.fedoraproject.org" $
              if isJust mlocn then mlocn else mhost
       toppath = if null ((decodePathSegments . extractPath) (B.pack host))
@@ -101,7 +102,7 @@ findISO mhost dryrun arch edition tgtrel = do
                 else ""
       url = if isJust mlocn then host </> relpath else joinPath [host, toppath, relpath, if edition `elem` fedoraSpins then "Spins" else show edition, arch, editionMedia edition <> "/"]
       prefix = fromMaybe (intercalate "-" (["Fedora", show edition, editionType edition, arch] <> maybeToList mrelease)) mprefix
-  (fileurl, remotesize, mchecksum) <- findURL url prefix
+  (fileurl, remotesize, mchecksum) <- findURL url prefix (tgtrel == "respin")
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
     then do
@@ -116,14 +117,14 @@ findISO mhost dryrun arch edition tgtrel = do
   fileChecksum mchecksum
   updateSymlink localfile symlink
   where
-    findURL :: String -> String -> IO (String, Maybe Integer, Maybe String)
-    findURL url prefix = do
+    findURL :: String -> String -> Bool -> IO (String, Maybe Integer, Maybe String)
+    findURL url prefix chksumPrefix = do
       mgr <- httpManager
       redirect <- httpRedirect mgr url
       let finalUrl = maybe url B.unpack redirect
       hrefs <- httpDirectory mgr finalUrl
       let mfile = listToMaybe $ filter (T.pack prefix `T.isPrefixOf`) hrefs :: Maybe Text
-          mchecksum = listToMaybe $ filter (T.pack "CHECKSUM" `T.isSuffixOf`) hrefs
+          mchecksum = listToMaybe $ filter ((if chksumPrefix then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case mfile of
         Nothing ->
           error' $ "not found " <> finalUrl
@@ -170,13 +171,21 @@ findISO mhost dryrun arch edition tgtrel = do
     fileChecksum mchecksum =
       case mchecksum of
         Nothing -> return ()
-        Just checksum -> do
-          let local = takeFileName checksum
-          exists <- doesFileExist local
+        Just url -> do
+          let checksum = takeFileName url
+          exists <- doesFileExist checksum
           unless exists $
-            cmd_ "curl" ["-C", "-", "-s", "-S", "-O", checksum]
-          putStrLn $ "Running sha256sum on " <> local
-          cmd_ "sha256sum" ["--check", "--ignore-missing", local]
+            cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
+          pgp <- grep_ "PGP" checksum
+          gpgchk <- if pgp then do
+            havekeys <- shellBool "gpg --list-keys | grep -q @fedoraproject.org"
+            unless havekeys $
+              putStrLn "https://fedoramagazine.org/verify-fedora-iso-file/"
+            return $ if havekeys then ["gpg -q |"] else []
+            else return []
+          let shasum = if "CHECKSUM512" `isPrefixOf` checksum
+                       then "sha512sum" else "sha256sum"
+          shell_ $ unwords $ ["cat", checksum, "|"] ++ gpgchk ++ [shasum, "-c --ignore-missing"]
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
