@@ -1,5 +1,5 @@
 help:
-	@echo "devel targets: git-tag sdist version upload git-push copy"
+	@echo "devel targets: git-tag sdist version upload git-push copy publish"
 
 sdist:
 	./make-dist $(VERSION)
@@ -25,3 +25,6 @@ publish:
 
 copy:
 	cp -p dist/$(NAME)-$(VERSION).tar.gz ~/copr/$(NAME)/
+
+publish:
+	cabal upload --publish dist/$(NAME)-$(VERSION).tar.gz
