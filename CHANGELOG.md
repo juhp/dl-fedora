@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.3
+## 0.4 (2019-06-03)
+- drop version 30 special case
+- support gpg verification of checksum file
+
+## 0.3 (2019-04-16)
 - run sha256sum check
 - support fedora Spins
 

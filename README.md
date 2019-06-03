@@ -20,3 +20,5 @@ Usage example:
 
 A symlink to the latest iso is also created:
 eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.
+
+When available it also tries to check the iso checksum and its gpg signature.
