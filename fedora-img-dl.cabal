@@ -33,7 +33,7 @@ executable fedora-img-dl
                        http-directory >= 0.1.2,
                        http-types,
                        optparse-applicative,
-                       simple-cmd >= 0.1.4,
+                       simple-cmd >= 0.2.0,
                        simple-cmd-args >= 0.1.1,
                        text,
                        unix,

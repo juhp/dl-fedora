@@ -23,7 +23,7 @@ import qualified Options.Applicative.Help.Pretty as P
 
 import Paths_fedora_img_dl (version)
 
-import SimpleCmd (cmd_, error', grep_, shell_, shellBool)
+import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs
 
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
@@ -69,20 +69,22 @@ fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Cinnamon ..]
 
 main :: IO ()
-main =
+main = do
   let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
              P.<$$> P.text ("RELEASE = " <> intercalate ", " ["rawhide", "respin", "beta", "or Release version"])
-             P.<$$> P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) in
+             P.<$$> P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace)
+             P.<$$> P.text "See also <https://fedoramagazine.org/verify-fedora-iso-file>."
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
-    <$> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
+    <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
+    <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
     <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default]" Workstation
     <*> strArg "RELEASE"
 
-findISO :: Maybe String -> Bool -> String -> FedoraEdition -> String -> IO ()
-findISO mhost dryrun arch edition tgtrel = do
+findISO :: Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
+findISO gpg dryrun mhost arch edition tgtrel = do
   (mlocn, relpath, mprefix, mrelease) <-
         case tgtrel of
           "rawhide" -> return (Nothing, "development/rawhide", Nothing, Just "Rawhide")
@@ -177,15 +179,28 @@ findISO mhost dryrun arch edition tgtrel = do
           unless exists $
             cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
           pgp <- grep_ "PGP" checksum
-          gpgchk <- if pgp then do
-            havekeys <- shellBool "gpg --list-keys | grep -q @fedoraproject.org"
-            unless havekeys $
-              putStrLn "https://fedoramagazine.org/verify-fedora-iso-file/"
-            return $ if havekeys then ["gpg -q |"] else []
-            else return []
+          when (gpg && pgp) $ do
+            havekey <- checkForFedoraKeys
+            unless havekey $ do
+              putStrLn "Importing Fedora GPG keys:\n"
+              -- https://fedoramagazine.org/verify-fedora-iso-file/
+              pipe_ ("curl",["-s", "-S", "https://getfedora.org/static/fedora.gpg"]) ("gpg",["--import"])
+              putStrLn ""
+          chkgpg <- if pgp
+            then checkForFedoraKeys
+            else return False
           let shasum = if "CHECKSUM512" `isPrefixOf` checksum
                        then "sha512sum" else "sha256sum"
-          shell_ $ unwords $ ["cat", checksum, "|"] ++ gpgchk ++ [shasum, "-c --ignore-missing"]
+          if chkgpg then do
+            putStrLn $ "Running gpg verify and " <> shasum <> ":"
+            pipeFile_ checksum ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
+            else do
+            putStrLn $ "Running " <> shasum <> ":"
+            cmd_ shasum ["-c", "--ignore-missing", checksum]
+
+    checkForFedoraKeys :: IO Bool
+    checkForFedoraKeys =
+      pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" ++ tgtrel ++ ").*@fedoraproject.org>"])
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
