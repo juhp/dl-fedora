@@ -94,8 +94,8 @@ findISO gpg dryrun mhost arch edition tgtrel = do
     setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
       symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
-  downloadFile fileurl remotesize localfile
-  fileChecksum mchecksum
+  done <- downloadFile fileurl remotesize localfile
+  when done $ fileChecksum mchecksum
   updateSymlink localfile symlink
   where
     -- (top,path,mfile)
@@ -179,23 +179,28 @@ findISO gpg dryrun mhost arch edition tgtrel = do
         createSymbolicLink target symlink
         putStrLn $ unwords [symlink, "->", target]
 
-    downloadFile :: String -> Maybe Integer -> String -> IO ()
+    downloadFile :: String -> Maybe Integer -> String -> IO Bool
     downloadFile url remotesize localfile = do
       exists <- doesFileExist localfile
       if exists
         then do
         localsize <- fileSize <$> getFileStatus localfile
         if Just (fromIntegral localsize) == remotesize
-          then
+          then do
           putStrLn "File already fully downloaded"
+          return True
           else do
           canwrite <- writable <$> getPermissions localfile
           unless canwrite $ error' "file does have write permission, aborting!"
-          unless dryrun $
+          if dryrun then return False
+            else do
             cmd_ "curl" ["-C", "-", "-O", url]
+            return True
         else
-        unless dryrun $
-        cmd_ "curl" ["-C", "-", "-O", url]
+        if dryrun then return False
+        else do
+          cmd_ "curl" ["-C", "-", "-O", url]
+          return False
 
     fileChecksum :: Maybe FilePath -> IO ()
     fileChecksum mchecksum =
