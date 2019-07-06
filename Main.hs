@@ -224,6 +224,7 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
         Just url -> do
           let checksum = takeFileName url
           exists <- doesFileExist checksum
+          putStrLn ""
           unless exists $
             cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
           pgp <- grep_ "PGP" checksum
