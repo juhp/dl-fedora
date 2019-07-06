@@ -115,7 +115,10 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
               _ -> error' "Unknown release"
           -- dirglob = tgtrel `elem` ["devel","test"]
       in ("linux" </> dirpath,
-          if edition `elem` fedoraSpins then "Spins" else joinPath [show edition, arch, editionMedia edition <> "/"], Nothing)
+          if edition `elem` fedoraSpins
+          then joinPath ["Spins", arch, "iso"]
+          else joinPath [show edition, arch, editionMedia edition],
+          Nothing)
 
     -- url, fileprefix, size, checksum
     findURL :: IO (String, String, Maybe Integer, Maybe String)
