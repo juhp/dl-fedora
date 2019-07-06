@@ -47,7 +47,7 @@ data FedoraEdition = Cloud
                    | KDE
                    | LXDE
                    | LXQt
-                   | Mate_Compiz
+                   | MATE_Compiz
                    | Soas
                    | Xfce
  deriving (Show, Enum, Bounded, Eq)
