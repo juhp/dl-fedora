@@ -75,14 +75,15 @@ main = do
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
+    <*> switchWith 'C' "no-checksum" "Do not check checksum"
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
     <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default]" Workstation
     <*> strArg "RELEASE"
 
-findISO :: Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-findISO gpg dryrun mhost arch edition tgtrel = do
+findISO :: Bool -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
+findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
   (fileurl, prefix, remotesize, mchecksum) <- findURL
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
@@ -95,7 +96,7 @@ findISO gpg dryrun mhost arch edition tgtrel = do
   let localfile = takeFileName fileurl
       symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
   done <- downloadFile fileurl remotesize localfile
-  when done $ fileChecksum mchecksum
+  when (done && not nochecksum) $ fileChecksum mchecksum
   updateSymlink localfile symlink
   where
     -- (top,path,mfile)
