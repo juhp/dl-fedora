@@ -18,7 +18,7 @@ import Network.HTTP.Directory
 import Options.Applicative (fullDesc, header, progDescDoc)
 import qualified Options.Applicative.Help.Pretty as P
 
-import Paths_fedora_img_dl (version)
+import Paths_dl_fedora (version)
 
 import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs

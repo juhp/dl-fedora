@@ -23,7 +23,7 @@ source-repository head
 
 executable dl-fedora
   main-is:             Main.hs
-  other-modules:       Paths_fedora_img_dl
+  other-modules:       Paths_dl_fedora
 
   build-depends:       base < 5,
                        bytestring,
