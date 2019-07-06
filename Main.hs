@@ -141,18 +141,18 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
           rel | all isDigit rel -> return $ Just rel
           "respin" -> return Nothing
           -- test and devel branch
-          _ -> do
-            rels <- httpDirectory mgr topurl
-            let mrel = listToMaybe $
-                       filter (not . (T.pack "rawhide" `T.isPrefixOf`)) rels
-            return $ case mrel of
-                       Nothing -> error "release not found"
-                       Just _ -> T.unpack <$> mrel
-      let finalUrl = topurl </> fromMaybe "" mreldir </> path
+          rel -> do
+            -- use http-directory-0.1.6 removeTrailing
+            rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr topurl
+            return $ listToMaybe $
+                       case rels of
+                         [] -> error' $ rel <> " release not found in " <> topurl
+                         ["rawhide"] -> ["rawhide"]
+                         _ -> delete "rawhide" rels
+      -- http dirs Should end in "/" probably
+      let finalUrl = topurl </> fromMaybe "" mreldir </> path <> "/"
       hrefs <- httpDirectory mgr finalUrl
-      let showRel "rawhide" = "Rawhide"
-          showRel r = if last r == '/' then init r else r
-          prefixPat = fromMaybe (intercalate "-" (["Fedora", show edition, editionType edition, arch] <> maybeToList (showRel <$> mreldir))) mprefix
+      let prefixPat = fromMaybe (makeFilePrefix mreldir) mprefix
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
           mfile = listToMaybe $ filter selector $ map T.unpack hrefs
           mchecksum = listToMaybe $ filter ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
@@ -167,6 +167,17 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
                        else prefixPat
           size <- httpFileSize mgr finalfile
           return (finalfile, prefix, size, (finalUrl </>) . T.unpack <$> mchecksum)
+    makeFilePrefix :: Maybe String -> String
+    makeFilePrefix mreldir =
+      let showRel "rawhide" = "Rawhide"
+          showRel r = if last r == '/' then init r else r
+          rel = maybeToList (showRel <$> mreldir)
+          middle =
+            if edition `elem` [Cloud, Container]
+            then rel ++ [".*" <> arch]
+            else [arch] ++ rel
+      in
+      intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
     updateSymlink :: FilePath -> FilePath -> IO ()
     updateSymlink target symlink =
@@ -243,10 +254,12 @@ editionType :: FedoraEdition -> String
 editionType Server = "dvd"
 editionType Silverblue = "ostree"
 editionType Everything = "netinst"
+editionType Cloud = "Base"
 editionType Container = "Base"
 editionType _ = "Live"
 
 editionMedia :: FedoraEdition -> String
+editionMedia Cloud = "images"
 editionMedia Container = "images"
 editionMedia _ = "iso"
 
