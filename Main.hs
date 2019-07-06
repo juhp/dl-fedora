@@ -133,7 +133,7 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
                          let dl = "https://download.fedoraproject.org/"
                          redirect <- httpRedirect mgr dl
                          case redirect of
-                           Nothing -> error "redirct to mirror failed"
+                           Nothing -> error' $ dl <> " redirect to mirror failed"
                            Just u -> return $ B.unpack u </> top
       mreldir <-
         case tgtrel of
@@ -158,7 +158,7 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
           mchecksum = listToMaybe $ filter ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case mfile of
         Nothing ->
-          error' $ "no match for " <> finalUrl
+          error' $ "no match for " <> prefixPat <> " in " <> finalUrl
         Just file -> do
           let finalfile = finalUrl </> file
           putStrLn finalfile
