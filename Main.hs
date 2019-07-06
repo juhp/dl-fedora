@@ -175,7 +175,7 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
           middle =
             if edition `elem` [Cloud, Container]
             then rel ++ [".*" <> arch]
-            else [arch] ++ rel
+            else arch : rel
       in
       intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
@@ -249,7 +249,7 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
 
     checkForFedoraKeys :: IO Bool
     checkForFedoraKeys =
-      pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" ++ tgtrel ++ ").*@fedoraproject.org>"])
+      pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> tgtrel <> ").*@fedoraproject.org>"])
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
@@ -273,4 +273,4 @@ infixr 5 </>
 s </> "" = s
 s </> t | last s == '/' = init s </> t
         | head t == '/' = s </> tail t
-s </> t = s ++ "/" ++ t
+s </> t = s <> "/" <> t
