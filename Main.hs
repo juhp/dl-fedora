@@ -15,7 +15,7 @@ import qualified Data.Text as T
 
 import Network.HTTP.Directory
 
-import Options.Applicative (auto, fullDesc, header, optional, progDescDoc)
+import Options.Applicative (fullDesc, header, progDescDoc)
 import qualified Options.Applicative.Help.Pretty as P
 
 import Paths_fedora_img_dl (version)
