@@ -1,9 +1,11 @@
 {-# LANGUAGE CPP #-}
 
+import Control.Applicative ((<|>)
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,8,0))
 #else
-import Control.Applicative ((<$>), (<*>))
+  , (<$>), (<*>)
 #endif
+  )
 import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
@@ -27,7 +29,7 @@ import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
                          doesFileExist, getPermissions, removeFile,
                          setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (joinPath, takeExtension, takeFileName, (<.>))
+import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName, (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -66,6 +68,10 @@ instance Read FedoraEdition where
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Cinnamon ..]
 
+dlFpo, downloadFpo :: String
+dlFpo = "https://dl.fedoraproject.org/pub"
+downloadFpo = "https://download.fedoraproject.org/pub"
+
 main :: IO ()
 main = do
   let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
@@ -77,13 +83,18 @@ main = do
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> switchWith 'C' "no-checksum" "Do not check checksum"
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
-    <*> optional (strOptionWith 'm' "mirror" "HOST" "default https://download.fedoraproject.org")
-    <*> strOptionalWith 'a' "arch" "ARCH" "architecture (default x86_64)" "x86_64"
-    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition: workstation [default]" Workstation
+    <*> mirrorOpt
+    <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
+    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition [default: workstation]" Workstation
     <*> strArg "RELEASE"
+  where
+    mirrorOpt :: Parser String
+    mirrorOpt =
+      flagWith' dlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
+      strOptionalWith 'm' "mirror" "HOST" "Mirror url for /pub [default https://download.fedoraproject.org/pub]" downloadFpo
 
-findISO :: Bool -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
+findISO :: Bool -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
+findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
   (fileurl, prefix, remotesize, mchecksum) <- findURL
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
@@ -94,105 +105,81 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
     createDirectoryIfMissing False dlDir
     setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
-      symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
   done <- downloadFile fileurl remotesize localfile
   when (done && not nochecksum) $ fileChecksum mchecksum
-  updateSymlink localfile symlink
+  let symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
+  updateSymlink dryrun localfile symlink
   where
-    -- (top,path,mfile)
-    urlPath :: (String,String,Maybe String)
-    urlPath =
-      if tgtrel == "respin"
-      then ("", "",
-            Just ("F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64"))
-      else
-      let dirpath =
-            case tgtrel of
-              "rawhide" -> "development"
-              "devel" -> "development"
-              "test" -> "releases/test"
-              rel | all isDigit rel -> "releases"
-              _ -> error' "Unknown release"
-          -- dirglob = tgtrel `elem` ["devel","test"]
-      in ("linux" </> dirpath,
-          if edition `elem` fedoraSpins
-          then joinPath ["Spins", arch, "iso"]
-          else joinPath [show edition, arch, editionMedia edition],
-          Nothing)
-
-    -- url, fileprefix, size, checksum
+    -- urlpath, fileprefix, size, checksum
     findURL :: IO (String, String, Maybe Integer, Maybe String)
     findURL = do
       mgr <- httpManager
-      let (top,path,mprefix) = urlPath
-      topurl <- if tgtrel == "respin"
-                then return "https://dl.fedoraproject.org/pub/alt/live-respins/"
-                else case mhost of
-                       Just host -> return host
-                       Nothing -> do
-                         let dl = "https://download.fedoraproject.org/"
-                         redirect <- httpRedirect mgr dl
-                         case redirect of
-                           Nothing -> error' $ dl <> " redirect to mirror failed"
-                           Just u -> return $ B.unpack u </> top
-      mreldir <-
-        case tgtrel of
-          "rawhide" -> return $ Just "rawhide"
-          rel | all isDigit rel -> return $ Just rel
-          "respin" -> return Nothing
-          -- test and devel branch
-          rel -> do
-            -- use http-directory-0.1.6 removeTrailing
-            rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr topurl
-            return $ listToMaybe $
-                       case rels of
-                         [] -> error' $ rel <> " release not found in " <> topurl
-                         ["rawhide"] -> ["rawhide"]
-                         _ -> delete "rawhide" rels
-      -- http dirs Should end in "/" probably
-      let finalUrl = topurl </> fromMaybe "" mreldir </> path <> "/"
-      hrefs <- httpDirectory mgr finalUrl
-      let prefixPat = fromMaybe (makeFilePrefix mreldir) mprefix
+      (path,mrelease) <- urlPathMRel mgr
+      -- use http-directory trailing (0.1.6)
+      let masterDir = dlFpo </> path <> "/"
+      hrefs <- httpDirectory mgr masterDir
+      let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
           mfile = listToMaybe $ filter selector $ map T.unpack hrefs
           mchecksum = listToMaybe $ filter ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case mfile of
         Nothing ->
-          error' $ "no match for " <> prefixPat <> " in " <> finalUrl
+          error' $ "no match for " <> prefixPat <> " in " <> masterDir
         Just file -> do
-          let finalfile = finalUrl </> file
-          putStrLn finalfile
-          let prefix = if '*' `elem` prefixPat
+          let masterUrl = masterDir </> file
+          size <- httpFileSize mgr masterUrl
+          -- use http-directory trailing (0.1.6)
+          finalurl <- if mirror == dlFpo then return masterUrl
+            else if mirror /= downloadFpo then return $ mirror </> path
+            else do
+            redir <- httpRedirect mgr $ mirror </> path </> file
+            case redir of
+              Nothing -> error' $ mirror </> path </> file <> " redirect failed"
+              Just u -> do
+                let url = B.unpack u
+                exists <- httpExists mgr url
+                if exists then return url
+                  else return masterUrl
+          let finalDir = dropFileName finalurl
+              prefix = if '*' `elem` prefixPat
                        then file =~ prefixPat
                        else prefixPat
-          size <- httpFileSize mgr finalfile
-          return (finalfile, prefix, size, (finalUrl </>) . T.unpack <$> mchecksum)
-    makeFilePrefix :: Maybe String -> String
-    makeFilePrefix mreldir =
-      let showRel "rawhide" = "Rawhide"
-          showRel r = if last r == '/' then init r else r
-          rel = maybeToList (showRel <$> mreldir)
-          middle =
-            if edition `elem` [Cloud, Container]
-            then rel ++ [".*" <> arch]
-            else arch : rel
-      in
-      intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
+          putStrLn finalurl
+          return (finalurl, prefix, size, (finalDir </>) . T.unpack <$> mchecksum)
 
-    updateSymlink :: FilePath -> FilePath -> IO ()
-    updateSymlink target symlink =
-      unless dryrun $ do
-      symExists <- doesFileExist symlink
-      if symExists
-        then do
-        linktarget <- readSymbolicLink symlink
-        when (linktarget /= target) $ do
-            removeFile symlink
-            createSymbolicLink target symlink
-            putStrLn $ unwords [symlink, "->", target]
-        else do
-        createSymbolicLink target symlink
-        putStrLn $ unwords [symlink, "->", target]
+    urlPathMRel :: Manager -> IO (String, Maybe String)
+    urlPathMRel mgr = do
+      let subdir =
+            if edition `elem` fedoraSpins
+            then joinPath ["Spins", arch, "iso"]
+            else joinPath [show edition, arch, editionMedia edition]
+      case tgtrel of
+        "respin" -> return ("alt/live-respins", Nothing)
+        "rawhide" -> return $ ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
+        "devel" -> develTestRelease mgr "development" subdir
+        "test" -> develTestRelease mgr "releases/test" subdir
+        rel | all isDigit rel -> return ("fedora/linux/releases" </> rel </> subdir, Just rel)
+        _ -> error' "Unknown release"
+
+    develTestRelease mgr dir subdir = do
+      let url = dlFpo </> "fedora/linux" </> dir
+      -- use http-directory-0.1.6 removeTrailing
+      rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
+      let mrel = listToMaybe $ delete "rawhide" rels
+      return $ ("fedora/linux" </> dir </> fromMaybe (error' ("release not found in " <> url)) mrel </> subdir, mrel)
+
+    makeFilePrefix :: Maybe String -> String
+    makeFilePrefix mrelease =
+      if tgtrel == "respin" then "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64"
+      else
+        let showRel r = if last r == '/' then init r else r
+            rel = maybeToList (showRel <$> mrelease)
+            middle =
+              if edition `elem` [Cloud, Container]
+              then rel ++ [".*" <> arch]
+              else arch : rel
+        in
+          intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
     downloadFile :: String -> Maybe Integer -> String -> IO Bool
     downloadFile url remotesize localfile = do
@@ -207,7 +194,10 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
           else do
           canwrite <- writable <$> getPermissions localfile
           unless canwrite $ error' "file does have write permission, aborting!"
-          if dryrun then return False
+          if dryrun
+            then do
+            putStrLn "Local filesize differs from remote"
+            return False
             else do
             cmd_ "curl" ["-C", "-", "-O", url]
             return True
@@ -215,7 +205,7 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
         if dryrun then return False
         else do
           cmd_ "curl" ["-C", "-", "-O", url]
-          return False
+          return True
 
     fileChecksum :: Maybe FilePath -> IO ()
     fileChecksum mchecksum =
@@ -250,6 +240,22 @@ findISO gpg nochecksum dryrun mhost arch edition tgtrel = do
     checkForFedoraKeys :: IO Bool
     checkForFedoraKeys =
       pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> tgtrel <> ").*@fedoraproject.org>"])
+
+updateSymlink :: Bool -> FilePath -> FilePath -> IO ()
+updateSymlink dryrun target symlink =
+  unless dryrun $ do
+  symExists <- doesFileExist symlink
+  if symExists
+    then do
+    linktarget <- readSymbolicLink symlink
+    when (linktarget /= target) $ do
+        removeFile symlink
+        createSymbolicLink target symlink
+        putStrLn $ unwords [symlink, "->", target]
+    else do
+    createSymbolicLink target symlink
+    putStrLn $ unwords [symlink, "->", target]
+
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"

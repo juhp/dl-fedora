@@ -1,3 +1,5 @@
+- list/status/diff type output (to replace -n?)
+
 - --replace (--delete?) option to delete old image?
 - configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
