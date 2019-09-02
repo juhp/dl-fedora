@@ -40,8 +40,7 @@ executable dl-fedora
                        unix,
                        xdg-userdirs
   if impl(ghc<8.0)
-      Build-depends: semigroups,
-                     cryptonite < 0.26
+      Build-depends: semigroups
 
   ghc-options:         -fwarn-missing-signatures
                        -Wall
