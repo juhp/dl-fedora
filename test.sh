@@ -9,3 +9,4 @@ $DL_FEDORA respin
 $DL_FEDORA 29 -e kde
 $DL_FEDORA 30 -e everything
 $DL_FEDORA 30 -e server --arch aarch64
+$DL_FEDORA 31
