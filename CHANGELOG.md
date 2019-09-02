@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6 (2019-09-02)
+- major rework to correct the url logic
+  - first checks on dl.fedoraproject.org (master)
+  - then tries to download corresponding filepath on download.fedoraproject.org
+  - or falls back to master mirror
+- new --dl option to download directly from dl.fedoraproject.org
+- can now find branched development release
+- also compares mirror and master filesizes
+- builds with lts-14
+
 ## 0.5 (2019-07-06)
 - no hardcoding of devel branch, beta, and respins
 - fix Spins and Cloud/Container paths
