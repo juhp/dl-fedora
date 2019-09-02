@@ -74,10 +74,14 @@ downloadFpo = "https://download.fedoraproject.org/pub"
 
 main :: IO ()
 main = do
-  let pdoc = Just $ P.text "Tool for downloading Fedora iso file images."
-             P.<$$> P.text ("RELEASE = " <> intercalate ", " ["rawhide", "devel", "respin", "test", "or Release version"])
-             P.<$$> P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace)
-             P.<$$> P.text "See also <https://fedoramagazine.org/verify-fedora-iso-file>."
+  let pdoc = Just $ P.vcat
+             [ P.text "Tool for downloading Fedora iso file images.",
+               P.text ("RELEASE = " <> intercalate ", " ["rawhide", "devel", "respin", "test", "or Release version"]),
+               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
+               P.text "",
+               P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
+               P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
+             ]
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     findISO
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
