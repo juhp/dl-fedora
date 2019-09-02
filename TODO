@@ -1,11 +1,10 @@
+- --ignore-dl
+
 - list/status/diff type output (to replace -n?)
 
+- support (latest?) koji composes
 - --replace (--delete?) option to delete old image?
 - configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
-- use/allow live-respins mirrors?
-- support (latest?) koji composes
 - --run Live in qemu
-- add --dl to use dl.fedoraproject.org
-- accept --mirror without http[s]://
 - which Cloud image?
