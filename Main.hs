@@ -95,7 +95,8 @@ main = do
 
 findISO :: Bool -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
 findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
-  (fileurl, prefix, remotesize, mchecksum) <- findURL
+  mgr <- httpManager
+  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum) <- findURL mgr
   dlDir <- getUserDir "DOWNLOAD"
   if dryrun
     then do
@@ -105,15 +106,14 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
     createDirectoryIfMissing False dlDir
     setCurrentDirectory dlDir
   let localfile = takeFileName fileurl
-  done <- downloadFile fileurl remotesize localfile
+  done <- downloadFile mgr fileurl (masterUrl,masterSize) localfile
   when (done && not nochecksum) $ fileChecksum mchecksum
-  let symlink = dlDir </> prefix <> "-latest" <.> takeExtension fileurl
+  let symlink = dlDir </> filenamePrefix <> "-latest" <.> takeExtension fileurl
   updateSymlink dryrun localfile symlink
   where
-    -- urlpath, fileprefix, size, checksum
-    findURL :: IO (String, String, Maybe Integer, Maybe String)
-    findURL = do
-      mgr <- httpManager
+    -- urlpath, fileprefix, (master,size), checksum
+    findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String)
+    findURL mgr = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailing (0.1.6)
       let masterDir = dlFpo </> path <> "/"
@@ -145,8 +145,9 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
                        then file =~ prefixPat
                        else prefixPat
           putStrLn finalurl
-          return (finalurl, prefix, size, (finalDir </>) . T.unpack <$> mchecksum)
+          return (finalurl, prefix, (masterUrl,size), (finalDir </>) . T.unpack <$> mchecksum)
 
+    -- avoid import of Manager until http-directory-0.1.6
     urlPathMRel :: Manager -> IO (String, Maybe String)
     urlPathMRel mgr = do
       let subdir =
@@ -181,13 +182,13 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
         in
           intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
-    downloadFile :: String -> Maybe Integer -> String -> IO Bool
-    downloadFile url remotesize localfile = do
+    downloadFile :: Manager -> String -> (String, Maybe Integer) -> String -> IO Bool
+    downloadFile mgr url (masterUrl,masterSize) localfile = do
       exists <- doesFileExist localfile
       if exists
         then do
         localsize <- fileSize <$> getFileStatus localfile
-        if Just (fromIntegral localsize) == remotesize
+        if Just (fromIntegral localsize) == masterSize
           then do
           putStrLn "File already fully downloaded"
           return True
@@ -196,9 +197,13 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
           unless canwrite $ error' "file does have write permission, aborting!"
           if dryrun
             then do
-            putStrLn "Local filesize differs from remote"
+            putStrLn "Local filesize differs from master"
             return False
             else do
+            when (url /= masterUrl) $ do
+              mirrorSize <- httpFileSize mgr url
+              unless (mirrorSize == masterSize) $
+                putStrLn "Warning!  Mirror filesize differs from master file"
             cmd_ "curl" ["-C", "-", "-O", url]
             return True
         else
