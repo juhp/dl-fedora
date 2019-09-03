@@ -160,7 +160,7 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
             else joinPath [show edition, arch, editionMedia edition]
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
-        "rawhide" -> return $ ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
+        "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
         "test" -> checkTestRel mgr subdir
         rel | all isDigit rel -> checkReleased mgr rel subdir
         _ -> error' "Unknown release"
@@ -172,7 +172,7 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
       -- use http-directory-0.1.6 removeTrailing
       rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
-      return $ (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
+      return (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
 
     checkReleased :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
     checkReleased mgr rel subdir = do
@@ -185,7 +185,7 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
             url' = dlFpo </> dir'
         exists' <- httpExists mgr $ url' </> rel
         if exists' then return (dir' </> rel </> subdir, Just rel)
-          else error' $ "release not found in releases/ or development/"
+          else error' "release not found in releases/ or development/"
 
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
