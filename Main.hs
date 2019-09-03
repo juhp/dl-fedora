@@ -76,7 +76,7 @@ main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["rawhide", "devel", "respin", "test", "or Release version"]),
+               P.text ("RELEASE = " <> intercalate ", " ["rawhide", "respin", "test", "or release number"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -161,18 +161,18 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
         "rawhide" -> return $ ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
-        "devel" -> checkForRelease mgr "development" subdir
-        "test" -> checkForRelease mgr "releases/test" subdir
+        "test" -> checkTestRel mgr subdir
         rel | all isDigit rel -> checkReleased mgr rel subdir
         _ -> error' "Unknown release"
 
-    checkForRelease :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
-    checkForRelease mgr dir subdir = do
-      let url = dlFpo </> "fedora/linux" </> dir
+    checkTestRel :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    checkTestRel mgr subdir = do
+      let path = "fedora/linux" </> "releases/test"
+          url = dlFpo </> path
       -- use http-directory-0.1.6 removeTrailing
       rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
-      let mrel = listToMaybe $ delete "rawhide" rels
-      return $ ("fedora/linux" </> dir </> fromMaybe (error' ("release not found in " <> url)) mrel </> subdir, mrel)
+      let mrel = listToMaybe rels
+      return $ (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
 
     checkReleased :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
     checkReleased mgr rel subdir = do
