@@ -112,7 +112,7 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
   let localfile = takeFileName fileurl
   done <- downloadFile mgr fileurl (masterUrl,masterSize) localfile
   when (done && not nochecksum) $ fileChecksum mchecksum
-  let symlink = dlDir </> filenamePrefix <> "-latest" <.> takeExtension fileurl
+  let symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
   updateSymlink dryrun localfile symlink
   where
     -- urlpath, fileprefix, (master,size), checksum
