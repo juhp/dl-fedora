@@ -26,10 +26,11 @@ import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs
 
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
-                         doesFileExist, getPermissions, removeFile,
+                         doesFileExist, getPermissions, listDirectory, removeFile,
                          setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName, (<.>))
+import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
+                        (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -267,7 +268,13 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
 updateSymlink :: Bool -> FilePath -> FilePath -> IO ()
 updateSymlink dryrun target symlink =
   unless dryrun $ do
-  symExists <- doesFileExist symlink
+  symExists <- do
+    havefile <- doesFileExist symlink
+    if havefile then return True
+      else do
+      -- check for broken symlink
+      dirfiles <- listDirectory "."
+      return $ symlink `elem` dirfiles
   if symExists
     then do
     linktarget <- readSymbolicLink symlink
