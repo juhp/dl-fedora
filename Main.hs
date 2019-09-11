@@ -88,6 +88,7 @@ main = do
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> switchWith 'C' "no-checksum" "Do not check checksum"
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
+    <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> mirrorOpt
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition [default: workstation]" Workstation
@@ -98,8 +99,8 @@ main = do
       flagWith' dlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
       strOptionalWith 'm' "mirror" "HOST" "Mirror url for /pub [default https://download.fedoraproject.org/pub]" downloadFpo
 
-findISO :: Bool -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
-findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
+findISO :: Bool -> Bool -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
+findISO gpg nochecksum dryrun run mirror arch edition tgtrel = do
   mgr <- httpManager
   (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum) <- findURL mgr
   dlDir <- getUserDir "DOWNLOAD"
@@ -115,6 +116,7 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
   when (done && not nochecksum) $ fileChecksum mchecksum
   let symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
   updateSymlink dryrun localfile symlink
+  when run $ bootImage localfile
   where
     -- urlpath, fileprefix, (master,size), checksum
     findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String)
@@ -311,3 +313,11 @@ s </> "" = s
 s </> t | last s == '/' = init s </> t
         | head t == '/' = s </> tail t
 s </> t = s <> "/" <> t
+
+bootImage :: FilePath -> IO ()
+bootImage img = do
+  let fileopts =
+        case takeExtension img of
+          ".iso" -> ["-boot", "d", "-cdrom"]
+          _ -> []
+  cmd_ "qemu-kvm" (["-m", "2048", "-usb", "-rtc", "base=localtime"] ++ fileopts ++ [img])
