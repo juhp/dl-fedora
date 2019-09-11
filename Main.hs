@@ -280,12 +280,13 @@ updateSymlink dryrun target symlink =
     linktarget <- readSymbolicLink symlink
     when (linktarget /= target) $ do
         removeFile symlink
-        createSymbolicLink target symlink
-        putStrLn $ unwords [symlink, "->", target]
-    else do
-    createSymbolicLink target symlink
-    putStrLn $ unwords [symlink, "->", target]
-
+        makeSymlink
+    else makeSymlink
+  where
+    makeSymlink = do
+      putStrLn ""
+      createSymbolicLink target symlink
+      putStrLn $ unwords [symlink, "->", target]
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
