@@ -190,7 +190,7 @@ findISO gpg nochecksum dryrun mirror arch edition tgtrel = do
 
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
-      if tgtrel == "respin" then "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64"
+      if tgtrel == "respin" then "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
       else
         let showRel r = if last r == '/' then init r else r
             rel = maybeToList (showRel <$> mrelease)
