@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DL_FEDORA="dist/build/dl-fedora/dl-fedora -n"
+DL_FEDORA="dist/build/dl-fedora/dl-fedora"
 
 function runtest {
     echo ">> $DL_FEDORA $*"
@@ -8,11 +8,11 @@ function runtest {
     echo
 }
 
-runtest 30
-runtest rawhide -e silverblue
-runtest 31 -e container
+runtest -n 30 -c
+runtest -n rawhide -e silverblue
+runtest -n 31 -e container
 runtest respin
-runtest 29 -e kde
-runtest 30 -e everything
-runtest 30 -e server --arch aarch64
-runtest 31
+runtest -n 29 -e kde
+runtest -n 30 -e everything
+runtest -n 30 -e server --arch aarch64
+runtest -n 31
