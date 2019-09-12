@@ -1,6 +1,6 @@
 # dl-fedora
 
-Previously called `fedora-img-dl`.
+Earlier called `fedora-img-dl`.
 
 [![Hackage](https://img.shields.io/hackage/v/dl-fedora.svg)](https://hackage.haskell.org/package/dl-fedora)
 [![GPL-3 license](https://img.shields.io/badge/license-GPL--3-blue.svg)](LICENSE)
@@ -19,6 +19,8 @@ Usage example:
 `dl-fedora -e kde respin` : downloads the latest KDE Live respin
 
 `dl-fedora --edition server --arch aarch64 29` : will bring down the F29 Server iso
+
+`dl-fedora --run 31` : will download Fedora 31 Workstation and boot the Live image with qemu-kvm.
 
 A symlink to the latest iso is also created:
 eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.

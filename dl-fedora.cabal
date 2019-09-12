@@ -3,7 +3,7 @@ name:                dl-fedora
 version:             0.7
 synopsis:            Fedora image download tool
 description:         Tool to download Fedora iso and image files
--- can change to GPL-3.0-or-later with Cabal-2
+-- can change to GPL-3.0-or-later with Cabal-2.2
 license:             GPL-3
 license-file:        LICENSE
 homepage:            https://github.com/juhp/dl-fedora
