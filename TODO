@@ -1,9 +1,11 @@
 - --ignore-dl
+- support (latest?) koji composes
 
 - list/status/diff type output (to replace -n?)
 
-- support (latest?) koji composes
+- rawhide by version number?
 - --replace (--delete?) option to delete old image?
 - configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
 - which Cloud image?
+- centos?

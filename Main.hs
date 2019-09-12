@@ -26,11 +26,12 @@ import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs
 
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
-                         doesFileExist, getPermissions, listDirectory, removeFile,
-                         setCurrentDirectory, writable)
+                         doesFileExist, getHomeDirectory, getPermissions,
+                         listDirectory, removeFile, setCurrentDirectory,
+                         writable)
 import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
-                        (<.>))
+import System.FilePath (dropFileName, joinPath, makeRelative, takeExtension,
+                        takeFileName, (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -69,6 +70,9 @@ instance Read FedoraEdition where
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Cinnamon ..]
 
+data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
+  deriving Eq
+
 dlFpo, downloadFpo :: String
 dlFpo = "https://dl.fedoraproject.org/pub"
 downloadFpo = "https://download.fedoraproject.org/pub"
@@ -84,9 +88,9 @@ main = do
                P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
              ]
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
-    findISO
+    program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
-    <*> switchWith 'C' "no-checksum" "Do not check checksum"
+    <*> checkSumOpts
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> mirrorOpt
@@ -99,27 +103,38 @@ main = do
       flagWith' dlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
       strOptionalWith 'm' "mirror" "HOST" "Mirror url for /pub [default https://download.fedoraproject.org/pub]" downloadFpo
 
-findISO :: Bool -> Bool -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
-findISO gpg nochecksum dryrun run mirror arch edition tgtrel = do
-  mgr <- httpManager
-  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum) <- findURL mgr
+    checkSumOpts :: Parser CheckSum
+    checkSumOpts =
+      flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
+      flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
+
+program :: Bool -> CheckSum -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
+program gpg checksum dryrun run mirror arch edition tgtrel = do
+  home <- getHomeDirectory
   dlDir <- getUserDir "DOWNLOAD"
-  if dryrun
-    then do
-    dirExists <- doesDirectoryExist dlDir
-    when dirExists $ setCurrentDirectory dlDir
+  dirExists <- doesDirectoryExist dlDir
+  if not dryrun && not dirExists && home == dlDir
+    then error' "HOME directory does not exist!"
     else do
-    createDirectoryIfMissing False dlDir
-    setCurrentDirectory dlDir
-  let localfile = takeFileName fileurl
-  done <- downloadFile mgr fileurl (masterUrl,masterSize) localfile
-  when (done && not nochecksum) $ fileChecksum mchecksum
-  let symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
-  updateSymlink dryrun localfile symlink
-  when run $ bootImage localfile
-  where
-    -- urlpath, fileprefix, (master,size), checksum
-    findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String)
+    unless (dirExists || dryrun) $ createDirectoryIfMissing False dlDir
+    dirExists' <- if dirExists then return True
+      else doesDirectoryExist dlDir
+    when dirExists' $ setCurrentDirectory dlDir
+    mgr <- httpManager
+    (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr
+    let localfile = takeFileName fileurl
+    check <- if done then return False
+             else downloadFile mgr fileurl (masterUrl,masterSize) localfile
+    when ((check && checksum /= NoCheckSum) || checksum == CheckSum) $
+      fileChecksum mchecksum
+    unless dryrun $ do
+      let symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
+          showdestdir = "~" </> makeRelative home dlDir
+      updateSymlink localfile symlink showdestdir
+      when run $ bootImage localfile
+    where
+    -- urlpath, fileprefix, (master,size), checksum, downloaded
+    findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String, Bool)
     findURL mgr = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailing (0.1.6)
@@ -133,28 +148,55 @@ findISO gpg nochecksum dryrun run mirror arch edition tgtrel = do
         Nothing ->
           error' $ "no match for " <> prefixPat <> " in " <> masterDir
         Just file -> do
-          let masterUrl = masterDir </> file
-          size <- httpFileSize mgr masterUrl
-          -- use http-directory trailing (0.1.6)
-          finalurl <- if mirror == dlFpo then return masterUrl
-            else if mirror /= downloadFpo then return $ mirror </> path
-            else do
-            redir <- httpRedirect mgr $ mirror </> path </> file
-            case redir of
-              Nothing -> error' $ mirror </> path </> file <> " redirect failed"
-              Just u -> do
-                let url = B.unpack u
-                exists <- httpExists mgr url
-                if exists then return url
-                  else return masterUrl
-          let finalDir = dropFileName finalurl
-              prefix = if '*' `elem` prefixPat
+          let prefix = if '*' `elem` prefixPat
                        then file =~ prefixPat
                        else prefixPat
+              masterUrl = masterDir </> file
+          masterSize <- httpFileSize mgr masterUrl
+          (finalurl, already) <- do
+            let localfile = takeFileName masterUrl
+            exists <- doesFileExist localfile
+            if exists
+              then do
+              done <- checkLocalFileSize localfile masterSize
+              if done
+                then return (masterUrl,True)
+                else findMirror masterUrl path file
+              else findMirror masterUrl path file
+          let finalDir = dropFileName finalurl
           putStrLn finalurl
-          return (finalurl, prefix, (masterUrl,size), (finalDir </>) . T.unpack <$> mchecksum)
+          return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
+        where
+          findMirror masterUrl path file = do
+            url <-
+              if mirror == dlFpo then return masterUrl
+                else
+                if mirror /= downloadFpo then return $ mirror </> path
+                else do
+                  redir <- httpRedirect mgr $ mirror </> path </> file
+                  case redir of
+                    Nothing -> error' $ mirror </> path </> file <> " redirect failed"
+                    Just u -> do
+                      let url = B.unpack u
+                      exists <- httpExists mgr url
+                      if exists then return url
+                        else return masterUrl
+            return (url,False)
 
-    -- avoid import of Manager until http-directory-0.1.6
+    checkLocalFileSize localfile masterSize = do
+      localsize <- toInteger . fileSize <$> getFileStatus localfile
+      if Just localsize == masterSize
+        then do
+        putStrLn "File already fully downloaded"
+        return True
+        else do
+        let showsize =
+              case masterSize of
+                Nothing -> show localsize
+                Just ms -> show (100 * localsize `div` ms) <> "%"
+        putStrLn $ "File " <> showsize <> " downloaded"
+        return False
+
     urlPathMRel :: Manager -> IO (String, Maybe String)
     urlPathMRel mgr = do
       let subdir =
@@ -205,45 +247,29 @@ findISO gpg nochecksum dryrun run mirror arch edition tgtrel = do
 
     downloadFile :: Manager -> String -> (String, Maybe Integer) -> String -> IO Bool
     downloadFile mgr url (masterUrl,masterSize) localfile = do
-      exists <- doesFileExist localfile
-      if exists
-        then do
-        localsize <- fileSize <$> getFileStatus localfile
-        if Just (fromIntegral localsize) == masterSize
-          then do
-          putStrLn "File already fully downloaded"
-          return True
-          else do
-          canwrite <- writable <$> getPermissions localfile
-          unless canwrite $ error' "file does have write permission, aborting!"
-          if dryrun
-            then do
-            putStrLn "Local filesize differs from master"
-            return False
-            else do
-            when (url /= masterUrl) $ do
-              mirrorSize <- httpFileSize mgr url
-              unless (mirrorSize == masterSize) $
-                putStrLn "Warning!  Mirror filesize differs from master file"
-            cmd_ "curl" ["-C", "-", "-O", url]
-            return True
-        else
-        if dryrun then return False
+      canwrite <- writable <$> getPermissions localfile
+      unless canwrite $ error' "file does have write permission, aborting!"
+      if dryrun
+        then return False
         else do
-          cmd_ "curl" ["-C", "-", "-O", url]
-          return True
+        when (url /= masterUrl) $ do
+          mirrorSize <- httpFileSize mgr url
+          unless (mirrorSize == masterSize) $
+            putStrLn "Warning!  Mirror filesize differs from master file"
+        cmd_ "curl" ["-C", "-", "-O", url]
+        return True
 
     fileChecksum :: Maybe FilePath -> IO ()
     fileChecksum mchecksum =
       case mchecksum of
         Nothing -> return ()
         Just url -> do
-          let checksum = takeFileName url
-          exists <- doesFileExist checksum
+          let checksumfile = takeFileName url
+          exists <- doesFileExist checksumfile
           putStrLn ""
           unless exists $
             cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
-          pgp <- grep_ "PGP" checksum
+          pgp <- grep_ "PGP" checksumfile
           when (gpg && pgp) $ do
             havekey <- checkForFedoraKeys
             unless havekey $ do
@@ -254,22 +280,21 @@ findISO gpg nochecksum dryrun run mirror arch edition tgtrel = do
           chkgpg <- if pgp
             then checkForFedoraKeys
             else return False
-          let shasum = if "CHECKSUM512" `isPrefixOf` checksum
+          let shasum = if "CHECKSUM512" `isPrefixOf` checksumfile
                        then "sha512sum" else "sha256sum"
           if chkgpg then do
             putStrLn $ "Running gpg verify and " <> shasum <> ":"
-            pipeFile_ checksum ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
+            pipeFile_ checksumfile ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
             else do
             putStrLn $ "Running " <> shasum <> ":"
-            cmd_ shasum ["-c", "--ignore-missing", checksum]
+            cmd_ shasum ["-c", "--ignore-missing", checksumfile]
 
     checkForFedoraKeys :: IO Bool
     checkForFedoraKeys =
       pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> tgtrel <> ").*@fedoraproject.org>"])
 
-updateSymlink :: Bool -> FilePath -> FilePath -> IO ()
-updateSymlink dryrun target symlink =
-  unless dryrun $ do
+updateSymlink :: FilePath -> FilePath -> String -> IO ()
+updateSymlink target symlink showdestdir = do
   symExists <- do
     havefile <- doesFileExist symlink
     if havefile then return True
@@ -288,7 +313,7 @@ updateSymlink dryrun target symlink =
     makeSymlink = do
       putStrLn ""
       createSymbolicLink target symlink
-      putStrLn $ unwords [symlink, "->", target]
+      putStrLn $ unwords [showdestdir </> symlink, "->", target]
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7 (2019-09-12)
+- add --checksum to always do checksum when possible
+- rework algorithms
+  - check local filesize earlier: don't even check mirror if always downloaded
+  - for partial local file output percentage already downloaded
+- show dir for symlink: so one knows location
+
 ## 0.6 (2019-09-02)
 - major rework to correct the url logic
   - first checks on dl.fedoraproject.org (master)
