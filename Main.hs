@@ -166,7 +166,9 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
                 unless canwrite $
                   error' $ localfile <> " does have write permission, aborting!"
                 findMirror masterUrl path file
-              else findMirror masterUrl path file
+              else do
+              maybe (return ()) (\ s -> putStrLn $ "size " <> show s) masterSize
+              findMirror masterUrl path file
           let finalDir = dropFileName finalurl
           putStrLn finalurl
           return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
