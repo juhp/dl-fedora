@@ -112,27 +112,30 @@ program :: Bool -> CheckSum -> Bool -> Bool -> String -> String -> FedoraEdition
 program gpg checksum dryrun run mirror arch edition tgtrel = do
   home <- getHomeDirectory
   dlDir <- getUserDir "DOWNLOAD"
-  dirExists <- doesDirectoryExist dlDir
-  if not dryrun && not dirExists && home == dlDir
-    then error' "HOME directory does not exist!"
-    else do
-    unless (dirExists || dryrun) $ createDirectoryIfMissing False dlDir
-    dirExists' <- if dirExists then return True
-      else doesDirectoryExist dlDir
-    when dirExists' $ setCurrentDirectory dlDir
-    mgr <- httpManager
-    (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr
+  setDownloadDir dlDir home
+  mgr <- httpManager
+  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr
+  needChecksum <- if done then return False
+                  else downloadFile mgr fileurl (masterUrl,masterSize)
+  when ((needChecksum && checksum /= NoCheckSum) || checksum == CheckSum) $
+    fileChecksum mchecksum
+  unless dryrun $ do
     let localfile = takeFileName fileurl
-    check <- if done then return False
-             else downloadFile mgr fileurl (masterUrl,masterSize) localfile
-    when ((check && checksum /= NoCheckSum) || checksum == CheckSum) $
-      fileChecksum mchecksum
-    unless dryrun $ do
-      let symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
-          showdestdir = "~" </> makeRelative home dlDir
-      updateSymlink localfile symlink showdestdir
-      when run $ bootImage localfile
-    where
+        symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
+        showdestdir = "~" </> makeRelative home dlDir
+    updateSymlink localfile symlink showdestdir
+    when run $ bootImage localfile
+  where
+    setDownloadDir dlDir home = do
+      dirExists <- doesDirectoryExist dlDir
+      unless (dryrun || dirExists) $
+        when (home == dlDir) $
+          error' "HOME directory does not exist!"
+      unless (dirExists || dryrun) $ createDirectoryIfMissing False dlDir
+      dirExists' <- if dirExists then return True
+                    else doesDirectoryExist dlDir
+      when dirExists' $ setCurrentDirectory dlDir
+
     -- urlpath, fileprefix, (master,size), checksum, downloaded
     findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String, Bool)
     findURL mgr = do
@@ -161,7 +164,11 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
               done <- checkLocalFileSize localfile masterSize
               if done
                 then return (masterUrl,True)
-                else findMirror masterUrl path file
+                else do
+                canwrite <- writable <$> getPermissions localfile
+                unless canwrite $
+                  error' $ localfile <> " does have write permission, aborting!"
+                findMirror masterUrl path file
               else findMirror masterUrl path file
           let finalDir = dropFileName finalurl
           putStrLn finalurl
@@ -245,10 +252,8 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
         in
           intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
-    downloadFile :: Manager -> String -> (String, Maybe Integer) -> String -> IO Bool
-    downloadFile mgr url (masterUrl,masterSize) localfile = do
-      canwrite <- writable <$> getPermissions localfile
-      unless canwrite $ error' "file does have write permission, aborting!"
+    downloadFile :: Manager -> String -> (String, Maybe Integer) -> IO Bool
+    downloadFile mgr url (masterUrl,masterSize) = do
       if dryrun
         then return False
         else do

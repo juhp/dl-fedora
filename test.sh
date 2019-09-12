@@ -2,11 +2,17 @@
 
 DL_FEDORA="dist/build/dl-fedora/dl-fedora -n"
 
-$DL_FEDORA 30
-$DL_FEDORA rawhide -e silverblue
-$DL_FEDORA 31 -e container
-$DL_FEDORA respin
-$DL_FEDORA 29 -e kde
-$DL_FEDORA 30 -e everything
-$DL_FEDORA 30 -e server --arch aarch64
-$DL_FEDORA 31
+function runtest {
+    echo ">> $DL_FEDORA $*"
+    $DL_FEDORA $*
+    echo
+}
+
+runtest 30
+runtest rawhide -e silverblue
+runtest 31 -e container
+runtest respin
+runtest 29 -e kde
+runtest 30 -e everything
+runtest 30 -e server --arch aarch64
+runtest 31
