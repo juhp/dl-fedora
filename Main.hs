@@ -26,9 +26,9 @@ import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs
 
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
-                         doesFileExist, getHomeDirectory, getPermissions,
-                         listDirectory, removeFile, setCurrentDirectory,
-                         writable)
+                         doesFileExist, findExecutable, getHomeDirectory,
+                         getPermissions, listDirectory, removeFile,
+                         setCurrentDirectory, writable)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath (dropFileName, joinPath, makeRelative, takeExtension,
                         takeFileName, (<.>))
@@ -350,4 +350,8 @@ bootImage img = do
         case takeExtension img of
           ".iso" -> ["-boot", "d", "-cdrom"]
           _ -> []
-  cmd_ "qemu-kvm" (["-m", "2048", "-usb", "-rtc", "base=localtime"] ++ fileopts ++ [img])
+  mQemu <- findExecutable "qemu-kvm"
+  case mQemu of
+    Just qemu ->
+      cmd_ qemu (["-m", "2048", "-usb", "-rtc", "base=localtime"] ++ fileopts ++ [img])
+    Nothing -> error' "Need qemu to run image"
