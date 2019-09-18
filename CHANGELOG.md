@@ -4,7 +4,7 @@
 - add --checksum to always do checksum when possible
 - add --run to run image in qemu-kvm if available
 - rework algorithms
-  - check local filesize earlier: don't even check mirror if always downloaded
+  - check local filesize earlier: don't even check mirror if already downloaded
   - for partial local file output percentage already downloaded
   - otherwise show filesize
 - show dir for symlink: so one knows location
