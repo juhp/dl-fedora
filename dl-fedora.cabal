@@ -28,7 +28,7 @@ executable dl-fedora
 
   build-depends:       base < 5,
                        bytestring,
-                       directory,
+                       directory >= 1.2.5.0,
                        filepath,
                        http-directory >= 0.1.5,
                        http-types,
