@@ -37,6 +37,7 @@ executable dl-fedora
                        simple-cmd >= 0.2.0,
                        simple-cmd-args >= 0.1.2,
                        text,
+                       time,
                        unix,
                        xdg-userdirs
   if impl(ghc<8.0)

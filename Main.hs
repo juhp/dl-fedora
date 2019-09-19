@@ -14,6 +14,7 @@ import Data.List
 import Data.Maybe
 import Data.Semigroup ((<>))
 import qualified Data.Text as T
+import Data.Time.LocalTime (utcToLocalZonedTime)
 
 import Network.HTTP.Directory
 
@@ -153,6 +154,12 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
                        else prefixPat
               masterUrl = masterDir </> file
           masterSize <- httpFileSize mgr masterUrl
+          mlocaltime <- do
+            mUtc <- httpLastModified mgr masterUrl
+            case mUtc of
+              Nothing -> return Nothing
+              Just u -> Just <$> utcToLocalZonedTime u
+          maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
           (finalurl, already) <- do
             let localfile = takeFileName masterUrl
             exists <- doesFileExist localfile
@@ -166,13 +173,14 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
                 unless canwrite $
                   error' $ localfile <> " does have write permission, aborting!"
                 findMirror masterUrl path file
-              else do
-              maybe (return ()) (\ s -> putStrLn $ "size " <> show s) masterSize
-              findMirror masterUrl path file
+              else findMirror masterUrl path file
           let finalDir = dropFileName finalurl
           putStrLn finalurl
           return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
         where
+          showMSize = fmap (\ s -> "size " <> show s <> " ")
+          showMDate = fmap (\ s -> "(" <> show s <> ")")
+
           findMirror masterUrl path file = do
             url <-
               if mirror == dlFpo then return masterUrl
