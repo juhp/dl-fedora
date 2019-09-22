@@ -23,7 +23,7 @@ import qualified Options.Applicative.Help.Pretty as P
 
 import Paths_dl_fedora (version)
 
-import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
+import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs
 
 import System.Directory (createDirectory, createDirectoryIfMissing,
@@ -125,7 +125,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
           let path = makeRelative home dlDir in
             if isRelative path then "~" </> path else path
     updateSymlink localfile symlink showdestdir
-    when run $ bootImage localfile
+    when run $ bootImage localfile showdestdir
   where
     setDownloadDir dlDir home = do
       dirExists <- doesDirectoryExist dlDir
@@ -360,14 +360,16 @@ s </> t | last s == '/' = init s </> t
         | head t == '/' = s </> tail t
 s </> t = s <> "/" <> t
 
-bootImage :: FilePath -> IO ()
-bootImage img = do
+bootImage :: FilePath -> String -> IO ()
+bootImage img showdir = do
   let fileopts =
         case takeExtension img of
           ".iso" -> ["-boot", "d", "-cdrom"]
           _ -> []
   mQemu <- findExecutable "qemu-kvm"
   case mQemu of
-    Just qemu ->
-      cmd_ qemu (["-m", "2048", "-usb", "-rtc", "base=localtime"] ++ fileopts ++ [img])
+    Just qemu -> do
+      let args = ["-m", "2048", "-rtc", "base=localtime"] ++ fileopts
+      cmdN qemu (args ++ [showdir </> img])
+      cmd_ qemu (args ++ [img])
     Nothing -> error' "Need qemu to run image"
