@@ -132,7 +132,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       unless (dryrun || dirExists) $
         when (home == dlDir) $
           error' "HOME directory does not exist!"
-      unless (dirExists || dryrun) $ createDirectoryIfMissing False dlDir
+      unless (dirExists || dryrun) $ createDirectoryIfMissing True dlDir
       dirExists' <- if dirExists then return True
                     else doesDirectoryExist dlDir
       when dirExists' $ setCurrentDirectory dlDir
