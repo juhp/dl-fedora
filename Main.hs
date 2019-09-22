@@ -32,8 +32,8 @@ import System.Directory (createDirectory, createDirectoryIfMissing,
                          removeFile, setCurrentDirectory, withCurrentDirectory,
                          writable)
 import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (dropFileName, joinPath, makeRelative, takeExtension,
-                        takeFileName, (<.>))
+import System.FilePath (dropFileName, isRelative , joinPath, makeRelative,
+                        takeExtension, takeFileName, (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -121,7 +121,9 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
   unless dryrun $ do
     let localfile = takeFileName fileurl
         symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
-        showdestdir = "~" </> makeRelative home dlDir
+        showdestdir =
+          let path = makeRelative home dlDir in
+            if isRelative path then "~" </> path else path
     updateSymlink localfile symlink showdestdir
     when run $ bootImage localfile
   where
