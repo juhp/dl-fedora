@@ -26,10 +26,11 @@ import Paths_dl_fedora (version)
 import SimpleCmd (cmd_, error', grep_, pipe_, pipeBool, pipeFile_)
 import SimpleCmdArgs
 
-import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
-                         doesFileExist, findExecutable, getHomeDirectory,
-                         getPermissions, listDirectory, removeFile,
-                         setCurrentDirectory, writable)
+import System.Directory (createDirectory, createDirectoryIfMissing,
+                         doesDirectoryExist, doesFileExist, findExecutable,
+                         getHomeDirectory, getPermissions, listDirectory,
+                         removeFile, setCurrentDirectory, withCurrentDirectory,
+                         writable)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath (dropFileName, joinPath, makeRelative, takeExtension,
                         takeFileName, (<.>))
@@ -277,10 +278,15 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
     fileChecksum Nothing _ = return ()
     fileChecksum (Just url) needChecksum =
       when ((needChecksum && checksum /= NoCheckSum) || checksum == CheckSum) $ do
-        let checksumfile = takeFileName url
-        exists <- doesFileExist checksumfile
+        let checksumdir = ".dl-fedora-checksums"
+            checksumfile = checksumdir </> takeFileName url
+        exists <- do
+          dirExists <- doesDirectoryExist checksumdir
+          if dirExists then doesFileExist checksumfile
+            else createDirectory checksumdir >> return False
         putStrLn ""
         unless exists $
+          withCurrentDirectory checksumdir $
           cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
         pgp <- grep_ "PGP" checksumfile
         when (gpg && pgp) $ do
