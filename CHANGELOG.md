@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.1 (2019-09-25)
+- print datestamp beside filesize
+- show directory correctly with ~/
+- use a subdirectory for checksum files
+
 ## 0.7 (2019-09-12)
 - add --checksum to always do checksum when possible
 - add --run to run image in qemu-kvm if available
