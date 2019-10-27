@@ -83,7 +83,7 @@ main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["rawhide", "respin", "test", "or release number"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test", "or stage"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -223,18 +223,28 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
         "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
-        "test" -> checkTestRel mgr subdir
+        "test" -> checkTestRelease mgr subdir
+        "stage" -> checkStagedRelease mgr subdir
         rel | all isDigit rel -> checkReleased mgr rel subdir
         _ -> error' "Unknown release"
 
-    checkTestRel :: Manager -> FilePath -> IO (FilePath, Maybe String)
-    checkTestRel mgr subdir = do
+    checkTestRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    checkTestRelease mgr subdir = do
       let path = "fedora/linux" </> "releases/test"
           url = dlFpo </> path
       -- use http-directory-0.1.6 removeTrailing
       rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
+
+    checkStagedRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    checkStagedRelease mgr subdir = do
+      let path = "alt/stage"
+          url = dlFpo </> path
+      -- use http-directory-0.1.6 removeTrailing
+      rels <- reverse <$> map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
+      let mrel = listToMaybe rels
+      return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
 
     checkReleased :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
     checkReleased mgr rel subdir = do
