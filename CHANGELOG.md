@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.2 (2019-10-29)
+- add stage release target (useful just prior to release)
+
 ## 0.7.1 (2019-09-25)
 - print datestamp beside filesize
 - show directory correctly with ~/

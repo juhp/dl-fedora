@@ -1,5 +1,6 @@
+- Release type
 - --ignore-dl
-- support (latest?) koji composes
+- support (latest) koji composes
 
 - list/status/diff type output (to replace -n?)
 - rename everything to netinstall?
