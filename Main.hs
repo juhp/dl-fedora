@@ -223,13 +223,13 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
         "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
-        "test" -> checkTestRelease mgr subdir
-        "stage" -> checkStagedRelease mgr subdir
-        rel | all isDigit rel -> checkReleased mgr rel subdir
+        "test" -> testRelease mgr subdir
+        "stage" -> stageRelease mgr subdir
+        rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
 
-    checkTestRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
-    checkTestRelease mgr subdir = do
+    testRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    testRelease mgr subdir = do
       let path = "fedora/linux" </> "releases/test"
           url = dlFpo </> path
       -- use http-directory-0.1.6 removeTrailing
@@ -237,8 +237,8 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
 
-    checkStagedRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
-    checkStagedRelease mgr subdir = do
+    stageRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    stageRelease mgr subdir = do
       let path = "alt/stage"
           url = dlFpo </> path
       -- use http-directory-0.1.6 removeTrailing
@@ -246,8 +246,8 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
 
-    checkReleased :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
-    checkReleased mgr rel subdir = do
+    released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
+    released mgr rel subdir = do
       let dir = "fedora/linux/releases"
           url = dlFpo </> dir
       exists <- httpExists mgr $ url </> rel
