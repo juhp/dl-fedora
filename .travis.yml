@@ -1,5 +1,9 @@
 language: haskell
 
+branches:
+  only:
+  - master
+
 cache:
   directories:
   - "$HOME/.cabal"
