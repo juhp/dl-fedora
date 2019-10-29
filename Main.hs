@@ -1,18 +1,22 @@
 {-# LANGUAGE CPP #-}
 
+#if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,13,0))
+#else
 import Control.Applicative ((<|>)
 #if (defined(MIN_VERSION_base) && MIN_VERSION_base(4,8,0))
 #else
   , (<$>), (<*>)
 #endif
   )
+import Data.Semigroup ((<>))
+#endif
+
 import Control.Monad (when, unless)
 
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit, toLower, toUpper)
 import Data.List
 import Data.Maybe
-import Data.Semigroup ((<>))
 import qualified Data.Text as T
 import Data.Time.LocalTime (utcToLocalZonedTime)
 
