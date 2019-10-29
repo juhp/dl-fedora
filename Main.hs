@@ -246,7 +246,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       let path = "alt/stage"
           url = dlFpo </> path
       -- use http-directory-0.1.6 removeTrailing
-      rels <- reverse <$> map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
+      rels <- reverse . map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
 
