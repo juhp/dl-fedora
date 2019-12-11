@@ -161,12 +161,6 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
                        else prefixPat
               masterUrl = masterDir </> file
           masterSize <- httpFileSize mgr masterUrl
-          mlocaltime <- do
-            mUtc <- httpLastModified mgr masterUrl
-            case mUtc of
-              Nothing -> return Nothing
-              Just u -> Just <$> utcToLocalZonedTime u
-          maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
           (finalurl, already) <- do
             let localfile = takeFileName masterUrl
             exists <- doesFileExist localfile
@@ -181,10 +175,20 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
                   error' $ localfile <> " does have write permission, aborting!"
                 findMirror masterUrl path file
               else findMirror masterUrl path file
+          mlocaltime <- httpTimestamp masterUrl
+          unless (run && already) $
+            maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
           let finalDir = dropFileName finalurl
-          putStrLn finalurl
+          unless run $
+            putStrLn finalurl
           return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
         where
+          httpTimestamp url = do
+            mUtc <- httpLastModified mgr url
+            case mUtc of
+              Nothing -> return Nothing
+              Just u -> Just <$> utcToLocalZonedTime u
+
           showMSize = fmap (\ s -> "size " <> show s <> " ")
           showMDate = fmap (\ s -> "(" <> show s <> ")")
 
@@ -208,7 +212,8 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       localsize <- toInteger . fileSize <$> getFileStatus localfile
       if Just localsize == masterSize
         then do
-        putStrLn "File already fully downloaded"
+        unless run $
+          putStrLn "File already fully downloaded"
         return True
         else do
         let showsize =
