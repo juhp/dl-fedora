@@ -10,7 +10,7 @@ homepage:            https://github.com/juhp/dl-fedora
 bug-reports:         https://github.com/juhp/dl-fedora/issues
 author:              Jens Petersen
 maintainer:          juhpetersen@gmail.com
-copyright:           2019  Jens Petersen
+copyright:           2019-2020  Jens Petersen
 category:            Utility
 build-type:          Simple
 extra-doc-files:     README.md
