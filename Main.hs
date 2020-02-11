@@ -150,8 +150,8 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       hrefs <- httpDirectory mgr masterDir
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
-          mfile = listToMaybe $ filter selector $ map T.unpack hrefs
-          mchecksum = listToMaybe $ filter ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
+          mfile = find selector $ map T.unpack hrefs
+          mchecksum = find ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case mfile of
         Nothing ->
           error' $ "no match for " <> prefixPat <> " in " <> masterDir
