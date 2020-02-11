@@ -1,6 +1,10 @@
+- download to a .hidden file
+- coreos Live
 - Release type
 - --ignore-dl
 - support (latest) koji composes
+- check for curl
+- run latest available local iso (without downloading)
 
 - list/status/diff type output (to replace -n?)
 - rename everything to netinstall?

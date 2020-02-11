@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.3 (2020-02-11)
+- fix CHECKSUM512 detection (for respins)
+
 ## 0.7.2 (2019-10-29)
 - add stage release target (useful just prior to release)
 
