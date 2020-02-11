@@ -1,0 +1,9 @@
+resolver: lts-9.21
+
+extra-deps:
+- simple-cmd-0.2.0.1
+- xdg-userdirs-0.1.0.2
+- http-directory-0.1.5
+- simple-cmd-args-0.1.2
+- http-date-0.0.7
+- optparse-applicative-0.14.1.0
