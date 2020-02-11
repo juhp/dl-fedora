@@ -320,7 +320,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
         chkgpg <- if pgp
           then checkForFedoraKeys
           else return False
-        let shasum = if "CHECKSUM512" `isPrefixOf` checksumfile
+        let shasum = if "CHECKSUM512" `isPrefixOf` takeFileName checksumfile
                      then "sha512sum" else "sha256sum"
         if chkgpg then do
           putStrLn $ "Running gpg verify and " <> shasum <> ":"
