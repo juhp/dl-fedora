@@ -2,7 +2,6 @@
 - coreos Live
 - Release type
 - --ignore-dl
-- support (latest) koji composes
 - check for curl
 - run latest available local iso (without downloading)
 

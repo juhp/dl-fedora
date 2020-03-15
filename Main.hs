@@ -27,7 +27,8 @@ import qualified Options.Applicative.Help.Pretty as P
 
 import Paths_dl_fedora (version)
 
-import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_)
+import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
+                  removePrefix)
 import SimpleCmdArgs
 
 import System.Directory (createDirectory, createDirectoryIfMissing,
@@ -79,15 +80,16 @@ fedoraSpins = [Cinnamon ..]
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
 
-dlFpo, downloadFpo :: String
+dlFpo, downloadFpo, kojiPkgs:: String
 dlFpo = "https://dl.fedoraproject.org/pub"
 downloadFpo = "https://download.fedoraproject.org/pub"
+kojiPkgs = "https://kojipkgs.fedoraproject.org/compose"
 
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test", "or stage"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test", "stage", "or koji"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -99,7 +101,7 @@ main = do
     <*> checkSumOpts
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in Qemu"
-    <*> mirrorOpt
+    <*> optional mirrorOpt
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition [default: workstation]" Workstation
     <*> strArg "RELEASE"
@@ -107,20 +109,26 @@ main = do
     mirrorOpt :: Parser String
     mirrorOpt =
       flagWith' dlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
-      strOptionalWith 'm' "mirror" "HOST" "Mirror url for /pub [default https://download.fedoraproject.org/pub]" downloadFpo
+      strOptionWith 'm' "mirror" "HOST" "Mirror url for /pub [default https://download.fedoraproject.org/pub]"
 
     checkSumOpts :: Parser CheckSum
     checkSumOpts =
       flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
       flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
 
-program :: Bool -> CheckSum -> Bool -> Bool -> String -> String -> FedoraEdition -> String -> IO ()
-program gpg checksum dryrun run mirror arch edition tgtrel = do
+program :: Bool -> CheckSum -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
+program gpg checksum dryrun run mmirror arch edition tgtrel = do
+  let mirror =
+        case mmirror of
+          Nothing | tgtrel == "koji" -> kojiPkgs
+          Nothing -> downloadFpo
+          Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
+          Just m -> m
   home <- getHomeDirectory
   dlDir <- getUserDir "DOWNLOAD"
   setDownloadDir dlDir home
   mgr <- httpManager
-  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr
+  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror
   downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mchecksum
   unless dryrun $ do
     let localfile = takeFileName fileurl
@@ -142,11 +150,11 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       when dirExists' $ setCurrentDirectory dlDir
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
-    findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String, Bool)
-    findURL mgr = do
+    findURL :: Manager -> String -> IO (String, String, (String,Maybe Integer), Maybe String, Bool)
+    findURL mgr mirror = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
-      let masterDir = dlFpo </> path <> "/"
+      let masterDir = (if tgtrel == "koji" then kojiPkgs else dlFpo) </> path <> "/"
       hrefs <- httpDirectory mgr masterDir
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
@@ -194,7 +202,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
 
           findMirror masterUrl path file = do
             url <-
-              if mirror == dlFpo then return masterUrl
+              if mirror `elem` [dlFpo,kojiPkgs] then return masterUrl
                 else
                 if mirror /= downloadFpo then return $ mirror </> path
                 else do
@@ -234,6 +242,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
         "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
         "test" -> testRelease mgr subdir
         "stage" -> stageRelease mgr subdir
+        "koji" -> kojiCompose mgr subdir
         rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
 
@@ -254,6 +263,15 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
       rels <- reverse . map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
+
+    kojiCompose :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    kojiCompose mgr subdir = do
+      let path = "branched"
+          url = kojiPkgs </> path
+          prefix = "latest-Fedora-"
+      latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> httpDirectory mgr url
+      let mlatest = listToMaybe latest
+      return (path </> fromMaybe (error' ("koji branched latest dir not not found in " <> url)) mlatest </> "compose" </> subdir, removePrefix prefix <$> mlatest)
 
     -- use https://admin.fedoraproject.org/pkgdb/api/collections ?
     released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
