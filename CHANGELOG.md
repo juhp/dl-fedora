@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.4 (2020-03-15)
+- add 'koji' release target: downloads latest branched compose from kojipkgs
+
 ## 0.7.3 (2020-02-11)
 - fix CHECKSUM512 detection (for respins)
 
