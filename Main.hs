@@ -145,7 +145,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
     findURL :: Manager -> IO (String, String, (String,Maybe Integer), Maybe String, Bool)
     findURL mgr = do
       (path,mrelease) <- urlPathMRel mgr
-      -- use http-directory trailing (0.1.6)
+      -- use http-directory trailingSlash (0.1.7)
       let masterDir = dlFpo </> path <> "/"
       hrefs <- httpDirectory mgr masterDir
       let prefixPat = makeFilePrefix mrelease
@@ -241,7 +241,7 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
     testRelease mgr subdir = do
       let path = "fedora/linux" </> "releases/test"
           url = dlFpo </> path
-      -- use http-directory-0.1.6 removeTrailing
+      -- use http-directory-0.1.7 noTrailingSlash
       rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
@@ -250,11 +250,12 @@ program gpg checksum dryrun run mirror arch edition tgtrel = do
     stageRelease mgr subdir = do
       let path = "alt/stage"
           url = dlFpo </> path
-      -- use http-directory-0.1.6 removeTrailing
+      -- use http-directory-0.1.7 noTrailingSlash
       rels <- reverse . map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
 
+    -- use https://admin.fedoraproject.org/pkgdb/api/collections ?
     released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
     released mgr rel subdir = do
       let dir = "fedora/linux/releases"
