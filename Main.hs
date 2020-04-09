@@ -187,8 +187,6 @@ program gpg checksum dryrun run mmirror arch edition tgtrel = do
           unless (run && already) $
             maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
           let finalDir = dropFileName finalurl
-          unless run $
-            putStrLn finalurl
           return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
         where
           httpTimestamp url = do
@@ -220,8 +218,8 @@ program gpg checksum dryrun run mmirror arch edition tgtrel = do
       localsize <- toInteger . fileSize <$> getFileStatus localfile
       if Just localsize == masterSize
         then do
-        unless run $
-          putStrLn "File already fully downloaded"
+        when (not run && takeExtension localfile == ".iso") $
+          putStrLn $ localfile <> " already fully downloaded"
         return True
         else do
         let showsize =
@@ -309,6 +307,7 @@ program gpg checksum dryrun run mmirror arch edition tgtrel = do
           mirrorSize <- httpFileSize mgr url
           unless (mirrorSize == masterSize) $
             putStrLn "Warning!  Mirror filesize differs from master file"
+        putStrLn url
         if dryrun then return False
           else do
           cmd_ "curl" ["-C", "-", "-O", url]
