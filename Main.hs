@@ -72,6 +72,8 @@ instance Read FedoraEdition where
       Nothing -> error' "unknown edition" >> RP.pfail
       Just ed -> RP.lift (R.string e) >> return ed
 
+type URL = String
+
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Cinnamon ..]
 
@@ -149,7 +151,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
       when dirExists' $ setCurrentDirectory dlDir
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
-    findURL :: Manager -> String -> IO (String, String, (String,Maybe Integer), Maybe String, Bool)
+    findURL :: Manager -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
     findURL mgr mirror = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
@@ -228,7 +230,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
         putStrLn $ "File " <> showsize <> " downloaded"
         return False
 
-    urlPathMRel :: Manager -> IO (String, Maybe String)
+    urlPathMRel :: Manager -> IO (FilePath, Maybe String)
     urlPathMRel mgr = do
       let subdir =
             if edition `elem` fedoraSpins
@@ -297,7 +299,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
         in
           intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
-    downloadFile :: Bool -> Manager -> String -> (String, Maybe Integer) -> IO Bool
+    downloadFile :: Bool -> Manager -> URL -> (URL, Maybe Integer) -> IO Bool
     downloadFile done mgr url (masterUrl,masterSize) =
       if done
         then return False
