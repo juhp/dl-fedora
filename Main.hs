@@ -130,7 +130,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
   setDownloadDir dlDir home
   mgr <- httpManager
   (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror
-  downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mchecksum
+  downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum
   unless dryrun $ do
     let localfile = takeFileName fileurl
         symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
@@ -314,39 +314,55 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           cmd_ "curl" ["-C", "-", "-O", url]
           return True
 
-    fileChecksum :: Maybe FilePath -> Bool -> IO ()
-    fileChecksum Nothing _ = return ()
-    fileChecksum (Just url) needChecksum =
+    fileChecksum :: Manager -> Maybe URL -> Bool -> IO ()
+    fileChecksum _ Nothing _ = return ()
+    fileChecksum mgr (Just url) needChecksum =
       when ((needChecksum && checksum /= NoCheckSum) || checksum == CheckSum) $ do
         let checksumdir = ".dl-fedora-checksums"
             checksumfile = checksumdir </> takeFileName url
         exists <- do
           dirExists <- doesDirectoryExist checksumdir
-          if dirExists then doesFileExist checksumfile
+          if dirExists then checkChecksumfile mgr url checksumfile
             else createDirectory checksumdir >> return False
         putStrLn ""
-        unless exists $
-          withCurrentDirectory checksumdir $
-          cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
-        pgp <- grep_ "PGP" checksumfile
-        when (gpg && pgp) $ do
-          havekey <- checkForFedoraKeys
-          unless havekey $ do
-            putStrLn "Importing Fedora GPG keys:\n"
-            -- https://fedoramagazine.org/verify-fedora-iso-file/
-            pipe_ ("curl",["-s", "-S", "https://getfedora.org/static/fedora.gpg"]) ("gpg",["--import"])
-            putStrLn ""
-        chkgpg <- if pgp
-          then checkForFedoraKeys
-          else return False
-        let shasum = if "CHECKSUM512" `isPrefixOf` takeFileName checksumfile
-                     then "sha512sum" else "sha256sum"
-        if chkgpg then do
-          putStrLn $ "Running gpg verify and " <> shasum <> ":"
-          pipeFile_ checksumfile ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
+        unless exists $ do
+          remoteExists <- httpExists mgr url
+          when remoteExists $
+            withCurrentDirectory checksumdir $
+            cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
+        haveChksum <- doesFileExist checksumfile
+        if not haveChksum
+          then putStrLn "No checksum file found"
           else do
-          putStrLn $ "Running " <> shasum <> ":"
-          cmd_ shasum ["-c", "--ignore-missing", checksumfile]
+          pgp <- grep_ "PGP" checksumfile
+          when (gpg && pgp) $ do
+            havekey <- checkForFedoraKeys
+            unless havekey $ do
+              putStrLn "Importing Fedora GPG keys:\n"
+              -- https://fedoramagazine.org/verify-fedora-iso-file/
+              pipe_ ("curl",["-s", "-S", "https://getfedora.org/static/fedora.gpg"]) ("gpg",["--import"])
+              putStrLn ""
+          chkgpg <- if pgp
+            then checkForFedoraKeys
+            else return False
+          let shasum = if "CHECKSUM512" `isPrefixOf` takeFileName checksumfile
+                       then "sha512sum" else "sha256sum"
+          if chkgpg then do
+            putStrLn $ "Running gpg verify and " <> shasum <> ":"
+            pipeFile_ checksumfile ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
+            else do
+            putStrLn $ "Running " <> shasum <> ":"
+            cmd_ shasum ["-c", "--ignore-missing", checksumfile]
+
+    checkChecksumfile :: Manager -> URL -> FilePath -> IO Bool
+    checkChecksumfile mgr url  checksumfile = do
+      exists <- doesFileExist checksumfile
+      if not exists then return False
+        else do
+        masterSize <- httpFileSize mgr url
+        ok <- checkLocalFileSize checksumfile masterSize
+        unless ok $ error' "Checksum file filesize mismatch"
+        return ok
 
     checkForFedoraKeys :: IO Bool
     checkForFedoraKeys =
