@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.5 (2020-09-14)
+## 0.7.5 (2020-09-13)
 - always print download url and already downloaded filename
 - --replace deletes previous symlinked image after downloading new one
 - improved checksum file handling
