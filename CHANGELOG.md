@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.5 (2020-09-14)
+- always print download url and already downloaded filename
+- --replace deletes previous symlinked image after downloading new one
+- improved checksum file handling
+
 ## 0.7.4 (2020-03-15)
 - add 'koji' release target: downloads latest branched compose from kojipkgs
 

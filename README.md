@@ -12,13 +12,13 @@ Usage example:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora -e silverblue 31` : downloads Fedora 31 Silverblue iso
+`dl-fedora -e silverblue 32` : downloads Fedora 32 Silverblue iso
 
 `dl-fedora -e kde respin` : downloads the latest KDE Live respin
 
-`dl-fedora --edition server --arch aarch64 30` : will bring down the F30 Server iso
+`dl-fedora --edition server --arch aarch64 31` : will bring down the F31 Server iso
 
-`dl-fedora --run 32` : will download Fedora 32 Workstation and boot the Live image with qemu-kvm.
+`dl-fedora --run 33` : will download Fedora 33 Workstation and boot the Live image with qemu-kvm.
 
 A symlink to the latest iso is also created:
 eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.
