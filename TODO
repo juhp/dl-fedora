@@ -1,16 +1,21 @@
+- support ELN
 - download to a .hidden file
 - coreos Live
 - Release type
 - --ignore-dl
 - check for curl
 - run latest local iso (without downloading newer)
+- qemu user options: eg -smp 2
 
 - list/status/diff type output (to replace -n?)
 - rename 'everything' to netinstall?
 - rawhide by version number?
-- --replace (--delete?) option to delete old image?
+- --replace/--delete options to delete old image (and checksum)?
 - configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
 - which Cloud image?
 - centos?
 - check sufficient diskspace
+- unify file and checksum download and size check
+- catch: HandshakeFailed (Error_Protocol ("certificate has expired",True,CertificateExpired))
+  - maybe in http-directory?
