@@ -99,6 +99,7 @@ main = do
     <*> checkSumOpts
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in Qemu"
+    <*> switchWith 'R' "replace" "Delete old image after downloading new one"
     <*> optional mirrorOpt
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
     <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition [default: workstation]" Workstation
@@ -114,8 +115,8 @@ main = do
       flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
       flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-program gpg checksum dryrun run mmirror arch edition tgtrel = do
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
+program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
   let mirror =
         case mmirror of
           Nothing | tgtrel == "koji" -> kojiPkgs
@@ -349,27 +350,31 @@ program gpg checksum dryrun run mmirror arch edition tgtrel = do
     checkForFedoraKeys =
       pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> tgtrel <> ").*@fedoraproject.org>"])
 
-updateSymlink :: FilePath -> FilePath -> String -> IO ()
-updateSymlink target symlink showdestdir = do
-  symExists <- do
-    havefile <- doesFileExist symlink
-    if havefile then return True
-      else do
-      -- check for broken symlink
-      dirfiles <- listDirectory "."
-      return $ symlink `elem` dirfiles
-  if symExists
-    then do
-    linktarget <- readSymbolicLink symlink
-    when (linktarget /= target) $ do
-        removeFile symlink
-        makeSymlink
-    else makeSymlink
-  where
-    makeSymlink = do
-      putStrLn ""
-      createSymbolicLink target symlink
-      putStrLn $ unwords [showdestdir </> symlink, "->", target]
+    updateSymlink :: FilePath -> FilePath -> FilePath -> IO ()
+    updateSymlink target symlink showdestdir = do
+      mmsymlinkTarget <- do
+        havefile <- doesFileExist symlink
+        if havefile
+          then Just . Just <$> readSymbolicLink symlink
+          else do
+          -- check for broken symlink
+          dirfiles <- listDirectory "."
+          return $ if symlink `elem` dirfiles then Just Nothing else Nothing
+      case mmsymlinkTarget of
+        Nothing -> makeSymlink
+        Just Nothing -> do
+          removeFile symlink
+          makeSymlink
+        Just (Just symlinktarget) -> do
+          when (symlinktarget /= target) $ do
+            when removeold $ removeFile symlinktarget
+            removeFile symlink
+            makeSymlink
+      where
+        makeSymlink = do
+          putStrLn ""
+          createSymbolicLink target symlink
+          putStrLn $ unwords [showdestdir </> symlink, "->", target]
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
