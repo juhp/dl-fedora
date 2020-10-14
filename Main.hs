@@ -9,7 +9,7 @@ import Control.Applicative ((<|>)
 import Data.Semigroup ((<>))
 #endif
 
-import Control.Monad (when, unless)
+import Control.Monad.Extra
 
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit, toLower, toUpper)
@@ -126,8 +126,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
           Just m -> m
   home <- getHomeDirectory
-  dlDir <- getUserDir "DOWNLOAD"
-  setDownloadDir dlDir home
+  dlDir <- setDownloadDir home
   mgr <- httpManager
   (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror
   downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum
@@ -140,15 +139,18 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
     updateSymlink localfile symlink showdestdir
     when run $ bootImage localfile showdestdir
   where
-    setDownloadDir dlDir home = do
+    setDownloadDir home = do
+      dlDir <- getUserDir "DOWNLOAD"
       dirExists <- doesDirectoryExist dlDir
       unless (dryrun || dirExists) $
         when (home == dlDir) $
           error' "HOME directory does not exist!"
-      unless (dirExists || dryrun) $ createDirectoryIfMissing True dlDir
-      dirExists' <- if dirExists then return True
-                    else doesDirectoryExist dlDir
-      when dirExists' $ setCurrentDirectory dlDir
+      dlIsoDir <- let isodir = dlDir </> "iso" in
+        ifM (doesDirectoryExist isodir) (return isodir) $ do
+        unless (dirExists || dryrun) $ createDirectoryIfMissing True dlDir
+        return dlDir
+      setCurrentDirectory dlIsoDir
+      return dlIsoDir
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
     findURL :: Manager -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
@@ -179,8 +181,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
               if done
                 then return (masterUrl,True)
                 else do
-                canwrite <- writable <$> getPermissions localfile
-                unless canwrite $
+                unlessM (writable <$> getPermissions localfile) $
                   error' $ localfile <> " does have write permission, aborting!"
                 findMirror masterUrl path file
               else findMirror masterUrl path file
@@ -325,9 +326,8 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           if dirExists then checkChecksumfile mgr url checksumfile
             else createDirectory checksumdir >> return False
         putStrLn ""
-        unless exists $ do
-          remoteExists <- httpExists mgr url
-          when remoteExists $
+        unless exists $
+          whenM (httpExists mgr url) $
             withCurrentDirectory checksumdir $
             cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
         haveChksum <- doesFileExist checksumfile
