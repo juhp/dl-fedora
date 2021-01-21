@@ -21,7 +21,9 @@ Usage examples:
 
 `dl-fedora --run 33` : will download Fedora 33 Workstation and boot the Live image with qemu-kvm.
 
-If the image is already in the Downloads/ directory it will not be downloaded again of course.
+If the image is already in the Downloads/ directory
+it will not be downloaded again of course.
+Curl is used to do the downloading.
 
 A symlink to the latest iso is also created:
 eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.
