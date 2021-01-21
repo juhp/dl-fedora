@@ -1,5 +1,6 @@
 # dl-fedora
 
+[![GitHub CI](https://github.com/juhp/dl-fedora/workflows/build/badge.svg)](https://github.com/juhp/dl-fedora/actions)
 [![Hackage](https://img.shields.io/hackage/v/dl-fedora.svg)](https://hackage.haskell.org/package/dl-fedora)
 [![GPL-3 license](https://img.shields.io/badge/license-GPL--3-blue.svg)](LICENSE)
 [![Stackage Lts](http://stackage.org/package/dl-fedora/badge/lts)](http://stackage.org/lts/package/dl-fedora)
@@ -8,11 +9,11 @@
 A tool for downloading Fedora images.
 By default it targets the Workstation edition of Fedora.
 
-Usage example:
+Usage examples:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora -e silverblue 33` : downloads Fedora 32 Silverblue iso
+`dl-fedora -e silverblue 33` : downloads the Fedora Silverblue iso
 
 `dl-fedora -e kde respin` : downloads the latest KDE Live respin
 
@@ -20,7 +21,9 @@ Usage example:
 
 `dl-fedora --run 33` : will download Fedora 33 Workstation and boot the Live image with qemu-kvm.
 
+If the image is already in the Downloads/ directory it will not be downloaded again of course.
+
 A symlink to the latest iso is also created:
 eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.
 
-When available it also tries to check the iso checksum and its gpg signature.
+It also tries to check the iso checksum and its gpg signature.
