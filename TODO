@@ -1,11 +1,15 @@
+- warn if dir hasn't var_run_t permission
 - download to a .hidden file
 - coreos Live
 - Release type
 - --ignore-dl
 - check for curl
-- run latest local iso (without downloading newer)
+- run latest local iso (without downloading newer): --local
 - qemu user options: eg -smp 2
+- restore selinux properties after running
+- handle ELN dvd image
 
+- centos stream
 - list/status/diff type output (to replace -n?)
 - rename 'everything' to netinstall?
 - rawhide by version number?
@@ -13,7 +17,6 @@
 - configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
 - which Cloud image?
-- centos?
 - check sufficient diskspace
 - unify file and checksum download and size check
 - catch: HandshakeFailed (Error_Protocol ("certificate has expired",True,CertificateExpired))

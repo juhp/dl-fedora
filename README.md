@@ -12,11 +12,11 @@ Usage example:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora -e silverblue 32` : downloads Fedora 32 Silverblue iso
+`dl-fedora -e silverblue 33` : downloads Fedora 32 Silverblue iso
 
 `dl-fedora -e kde respin` : downloads the latest KDE Live respin
 
-`dl-fedora --edition server --arch aarch64 31` : will bring down the F31 Server iso
+`dl-fedora --edition server --arch aarch64 32` : will bring down the F32 Server iso
 
 `dl-fedora --run 33` : will download Fedora 33 Workstation and boot the Live image with qemu-kvm.
 
