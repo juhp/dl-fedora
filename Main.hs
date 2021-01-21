@@ -80,16 +80,17 @@ fedoraSpins = [Cinnamon ..]
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
 
-dlFpo, downloadFpo, kojiPkgs:: String
+dlFpo, downloadFpo, kojiPkgs, odcsFpo :: String
 dlFpo = "https://dl.fedoraproject.org/pub"
 downloadFpo = "https://download.fedoraproject.org/pub"
 kojiPkgs = "https://kojipkgs.fedoraproject.org/compose"
+odcsFpo = "https://odcs.fedoraproject.org/composes"
 
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "or koji"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "or koji"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -110,7 +111,7 @@ main = do
     mirrorOpt :: Parser String
     mirrorOpt =
       flagWith' dlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
-      strOptionWith 'm' "mirror" "HOST" "Mirror url for /pub [default https://download.fedoraproject.org/pub]"
+      strOptionWith 'm' "mirror" "HOST" ("Mirror url for /pub [default " ++ downloadFpo ++ "]")
 
     checkSumOpts :: Parser CheckSum
     checkSumOpts =
@@ -122,20 +123,21 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
   let mirror =
         case mmirror of
           Nothing | tgtrel == "koji" -> kojiPkgs
+          Nothing | tgtrel == "eln" -> odcsFpo
           Nothing -> downloadFpo
           Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
           Just m -> m
   home <- getHomeDirectory
   dlDir <- setDownloadDir home
   mgr <- httpManager
-  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror
-  downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum
+  let showdestdir =
+        let path = makeRelative home dlDir in
+          if isRelative path then "~" </> path else path
+  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror showdestdir
+  downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
   unless dryrun $ do
     let localfile = takeFileName fileurl
-        symlink = filenamePrefix <> "-latest" <.> takeExtension fileurl
-        showdestdir =
-          let path = makeRelative home dlDir in
-            if isRelative path then "~" </> path else path
+        symlink = filenamePrefix <> (if tgtrel == "eln" then ("-" <> arch) else "") <> "-latest" <.> takeExtension fileurl
     updateSymlink localfile symlink showdestdir
     when run $ bootImage localfile showdestdir
   where
@@ -153,11 +155,15 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
       return dlIsoDir
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
-    findURL :: Manager -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
-    findURL mgr mirror = do
+    findURL :: Manager -> String -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
+    findURL mgr mirror showdestdir = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
-      let masterDir = (if tgtrel == "koji" then kojiPkgs else dlFpo) </> path <> "/"
+      let masterDir =
+            (case tgtrel of
+               "koji" -> kojiPkgs
+               "eln" -> odcsFpo
+               _ -> dlFpo) </> path <> "/"
       hrefs <- httpDirectory mgr masterDir
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
@@ -168,7 +174,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           error' $ "no match for " <> prefixPat <> " in " <> masterDir
         Just file -> do
           let prefix = if '*' `elem` prefixPat
-                       then file =~ prefixPat
+                       then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
                        else prefixPat
               masterUrl = masterDir </> file
           masterSize <- httpFileSize mgr masterUrl
@@ -177,7 +183,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
             exists <- doesFileExist localfile
             if exists
               then do
-              done <- checkLocalFileSize localfile masterSize
+              done <- checkLocalFileSize localfile masterSize showdestdir
               if done
                 then return (masterUrl,True)
                 else do
@@ -202,7 +208,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
 
           findMirror masterUrl path file = do
             url <-
-              if mirror `elem` [dlFpo,kojiPkgs] then return masterUrl
+              if mirror `elem` [dlFpo,kojiPkgs,odcsFpo] then return masterUrl
                 else
                 if mirror /= downloadFpo then return $ mirror </> path
                 else do
@@ -216,12 +222,12 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
                         else return masterUrl
             return (url,False)
 
-    checkLocalFileSize localfile masterSize = do
+    checkLocalFileSize localfile masterSize showdestdir = do
       localsize <- toInteger . fileSize <$> getFileStatus localfile
       if Just localsize == masterSize
         then do
         when (not run && takeExtension localfile == ".iso") $
-          putStrLn $ localfile <> " already fully downloaded"
+          putStrLn $ showdestdir </> localfile
         return True
         else do
         let showsize =
@@ -242,6 +248,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
         "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
         "test" -> testRelease mgr subdir
         "stage" -> stageRelease mgr subdir
+        "eln" -> return ("production/latest-Fedora-ELN/compose" </> "Everything" </> arch </> "iso", Nothing)
         "koji" -> kojiCompose mgr subdir
         rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
@@ -289,16 +296,18 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
 
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
-      if tgtrel == "respin" then "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
-      else
-        let showRel r = if last r == '/' then init r else r
-            rel = maybeToList (showRel <$> mrelease)
-            middle =
-              if edition `elem` [Cloud, Container]
-              then rel ++ [".*" <> arch]
-              else arch : rel
-        in
-          intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
+      case tgtrel of
+        "respin" -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
+        "eln" -> "Fedora-ELN-Rawhide"
+        _ ->
+          let showRel r = if last r == '/' then init r else r
+              rel = maybeToList (showRel <$> mrelease)
+              middle =
+                if edition `elem` [Cloud, Container]
+                then rel ++ [".*" <> arch]
+                else arch : rel
+          in
+            intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
 
     downloadFile :: Bool -> Manager -> URL -> (URL, Maybe Integer) -> IO Bool
     downloadFile done mgr url (masterUrl,masterSize) =
@@ -315,15 +324,15 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           cmd_ "curl" ["-C", "-", "-O", url]
           return True
 
-    fileChecksum :: Manager -> Maybe URL -> Bool -> IO ()
-    fileChecksum _ Nothing _ = return ()
-    fileChecksum mgr (Just url) needChecksum =
+    fileChecksum :: Manager -> Maybe URL -> String -> Bool -> IO ()
+    fileChecksum _ Nothing _ _ = return ()
+    fileChecksum mgr (Just url) showdestdir needChecksum =
       when ((needChecksum && checksum /= NoCheckSum) || checksum == CheckSum) $ do
         let checksumdir = ".dl-fedora-checksums"
             checksumfile = checksumdir </> takeFileName url
         exists <- do
           dirExists <- doesDirectoryExist checksumdir
-          if dirExists then checkChecksumfile mgr url checksumfile
+          if dirExists then checkChecksumfile mgr url checksumfile showdestdir
             else createDirectory checksumdir >> return False
         putStrLn ""
         unless exists $
@@ -354,13 +363,13 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
             putStrLn $ "Running " <> shasum <> ":"
             cmd_ shasum ["-c", "--ignore-missing", checksumfile]
 
-    checkChecksumfile :: Manager -> URL -> FilePath -> IO Bool
-    checkChecksumfile mgr url  checksumfile = do
+    checkChecksumfile :: Manager -> URL -> FilePath -> String -> IO Bool
+    checkChecksumfile mgr url checksumfile showdestdir = do
       exists <- doesFileExist checksumfile
       if not exists then return False
         else do
         masterSize <- httpFileSize mgr url
-        ok <- checkLocalFileSize checksumfile masterSize
+        ok <- checkLocalFileSize checksumfile masterSize showdestdir
         unless ok $ error' "Checksum file filesize mismatch"
         return ok
 
