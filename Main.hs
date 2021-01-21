@@ -137,7 +137,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
   downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
   unless dryrun $ do
     let localfile = takeFileName fileurl
-        symlink = filenamePrefix <> (if tgtrel == "eln" then ("-" <> arch) else "") <> "-latest" <.> takeExtension fileurl
+        symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
     updateSymlink localfile symlink showdestdir
     when run $ bootImage localfile showdestdir
   where
