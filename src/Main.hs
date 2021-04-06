@@ -59,14 +59,19 @@ data FedoraEdition = Cloud
                    | MATE_Compiz
                    | Soas
                    | Xfce
+                   | I3
  deriving (Show, Enum, Bounded, Eq)
+
+showEdition :: FedoraEdition -> String
+showEdition I3 = "i3"
+showEdition e = show e
 
 instance Read FedoraEdition where
   readPrec = do
     s <- look
     let e = map toLower s
         editionMap =
-          map (\ ed -> (map toLower (show ed), ed)) [minBound..maxBound]
+          map (\ ed -> (map toLower (showEdition ed), ed)) [minBound..maxBound]
         res = lookup e editionMap
     case res of
       Nothing -> error' "unknown edition" >> RP.pfail
@@ -91,7 +96,7 @@ main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
                P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "or koji"]),
-               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . show) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
+               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . showEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
                P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
@@ -242,7 +247,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
       let subdir =
             if edition `elem` fedoraSpins
             then joinPath ["Spins", arch, "iso"]
-            else joinPath [show edition, arch, editionMedia edition]
+            else joinPath [showEdition edition, arch, editionMedia edition]
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
         "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
@@ -307,7 +312,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
                 then rel ++ [".*" <> arch]
                 else arch : rel
           in
-            intercalate "-" (["Fedora", show edition, editionType edition] ++ middle)
+            intercalate "-" (["Fedora", showEdition edition, editionType edition] ++ middle)
 
     downloadFile :: Bool -> Manager -> URL -> (URL, Maybe Integer) -> IO Bool
     downloadFile done mgr url (masterUrl,masterSize) =
@@ -417,7 +422,7 @@ editionMedia Container = "images"
 editionMedia _ = "iso"
 
 liveRespin :: FedoraEdition -> String
-liveRespin = take 4 . map toUpper . show
+liveRespin = take 4 . map toUpper . showEdition
 
 infixr 5 </>
 (</>) :: String -> String -> String
