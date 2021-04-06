@@ -12,8 +12,8 @@ import Data.Semigroup ((<>))
 import Control.Monad.Extra
 
 import qualified Data.ByteString.Char8 as B
-import Data.Char (isDigit, toLower, toUpper)
-import Data.List
+import Data.Char (isDigit)
+import Data.List.Extra
 import Data.Maybe
 import qualified Data.Text as T
 import Data.Time.LocalTime (utcToLocalZonedTime)
@@ -56,22 +56,26 @@ data FedoraEdition = Cloud
                    | KDE
                    | LXDE
                    | LXQt
-                   | MATE_Compiz
+                   | MATE
                    | Soas
                    | Xfce
                    | I3
  deriving (Show, Enum, Bounded, Eq)
 
 showEdition :: FedoraEdition -> String
+showEdition MATE = "MATE_Compiz"
 showEdition I3 = "i3"
 showEdition e = show e
+
+lowerEdition :: FedoraEdition -> String
+lowerEdition = lower . show
 
 instance Read FedoraEdition where
   readPrec = do
     s <- look
-    let e = map toLower s
+    let e = lower s
         editionMap =
-          map (\ ed -> (map toLower (showEdition ed), ed)) [minBound..maxBound]
+          map (\ ed -> (lowerEdition ed, ed)) [minBound..maxBound]
         res = lookup e editionMap
     case res of
       Nothing -> error' "unknown edition" >> RP.pfail
@@ -96,7 +100,7 @@ main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
                P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "or koji"]),
-               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . map toLower . showEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
+               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
                P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
@@ -422,7 +426,7 @@ editionMedia Container = "images"
 editionMedia _ = "iso"
 
 liveRespin :: FedoraEdition -> String
-liveRespin = take 4 . map toUpper . showEdition
+liveRespin = take 4 . upper . showEdition
 
 infixr 5 </>
 (</>) :: String -> String -> String
