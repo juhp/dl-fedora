@@ -1,15 +1,15 @@
+- run latest local iso (without downloading newer): --local
 - warn if dir hasn't var_run_t permission
-- download to a .hidden file
+- download to a .hidden file and then rename
 - coreos Live
 - Release type
 - --ignore-dl
 - check for curl
-- run latest local iso (without downloading newer): --local
 - qemu user options: eg -smp 2
 - restore selinux properties after running
 - handle ELN dvd image
-
 - centos stream
+
 - list/status/diff type output (to replace -n?)
 - rename 'everything' to netinstall?
 - rawhide by version number?

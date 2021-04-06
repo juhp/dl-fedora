@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.7 (2021-04-06)
+- add the new F34 i3 spin
+
 ## 0.7.6 (2021-01-21)
 - improve help text for releases related for Beta and RCs (#1)
 - if ~/Downloads/iso/ exists then download to it otherwise ~/Downloads/
