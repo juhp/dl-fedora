@@ -1,4 +1,1 @@
-resolver: lts-16.14
-
-extra-deps:
-  - http-directory-0.1.8
+resolver: lts-16.31
