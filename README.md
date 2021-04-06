@@ -13,17 +13,20 @@ Usage examples:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora -e silverblue 33` : downloads the Fedora Silverblue iso
+`dl-fedora -e silverblue 34` : downloads the Fedora Silverblue iso
 
 `dl-fedora -e kde respin` : downloads the latest KDE Live respin
 
-`dl-fedora --edition server --arch aarch64 32` : will bring down the F32 Server iso
+`dl-fedora --edition server --arch aarch64 33` : will bring down the F33 Server iso for armv8
 
-`dl-fedora --run 33` : will download Fedora 33 Workstation and boot the Live image with qemu-kvm.
+`dl-fedora --run 34` : will download Fedora 34 Workstation and boot the Live image with qemu-kvm.
 
-If the image is already in the Downloads/ directory
+By default dl-fedora downloads to `~/Downloads/`, but if you create
+`~/Downloads/iso/` it will use that directory instead.
+
+If the image is already found to be downloaded
 it will not be downloaded again of course.
-Curl is used to do the downloading.
+Curl is used to do the downloading: partial downloads will continue.
 
 A symlink to the latest iso is also created:
 eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`.
