@@ -155,12 +155,22 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
       unless (dryrun || dirExists) $
         when (home == dlDir) $
           error' "HOME directory does not exist!"
-      dlIsoDir <- let isodir = dlDir </> "iso" in
-        ifM (doesDirectoryExist isodir) (return isodir) $ do
-        unless (dirExists || dryrun) $ createDirectoryIfMissing True dlDir
-        return dlDir
-      setCurrentDirectory dlIsoDir
-      return dlIsoDir
+      let isoDir = dlDir </> "iso"
+      isoExists <- doesDirectoryExist isoDir
+      if isoExists
+        then setCWD isoDir
+        else
+        if dirExists
+          then setCWD dlDir
+          else do
+          unless dryrun $
+            createDirectoryIfMissing True dlDir
+          setCWD dlDir
+
+    setCWD :: FilePath -> IO FilePath
+    setCWD dir = do
+      setCurrentDirectory dir
+      return dir
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
     findURL :: Manager -> String -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)

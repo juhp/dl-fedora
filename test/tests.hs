@@ -9,7 +9,7 @@ tests =
   [["-n", "33", "-c"]
   ,["-n", "rawhide", "-e", "silverblue"]
   ,["-n", "34", "-e", "silverblue"]
-  ,["respin"]
+  ,["-n", "respin"]
   ,["-n", "32", "-e", "kde"]
   ,["-n", "33", "-e", "everything"]
   ,["-n", "33", "-e", "server", "--arch", "aarch64"]
