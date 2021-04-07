@@ -8,6 +8,8 @@
 - restore selinux properties after running
 - handle ELN dvd image
 - centos stream
+- iot
+- alt Labs
 
 - rename 'everything' to netinstall?
 - rawhide by version number?

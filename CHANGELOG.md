@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8 (2021-04-07)
+- --local option: print (or --run) current local image instead of newer download
+- improve --dryrun Downloads/ handling for testsuite in CI
+
 ## 0.7.7 (2021-04-06)
 - add the new F34 i3 spin
 - shorten mate_compiz to mate
