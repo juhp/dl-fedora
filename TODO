@@ -1,4 +1,3 @@
-- run latest local iso (without downloading newer): --local
 - warn if dir hasn't var_run_t permission
 - download to a .hidden file and then rename
 - coreos Live
@@ -10,7 +9,6 @@
 - handle ELN dvd image
 - centos stream
 
-- list/status/diff type output (to replace -n?)
 - rename 'everything' to netinstall?
 - rawhide by version number?
 - --replace/--delete options to delete old image (and checksum)?
@@ -21,3 +19,5 @@
 - unify file and checksum download and size check
 - catch: HandshakeFailed (Error_Protocol ("certificate has expired",True,CertificateExpired))
   - maybe in http-directory?
+- delete older snapshot images
+- --local without checking remote (or maybe --local --dryrun?)

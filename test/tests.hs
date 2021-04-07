@@ -13,7 +13,7 @@ tests =
   ,["-n", "32", "-e", "kde"]
   ,["-n", "33", "-e", "everything"]
   ,["-n", "33", "-e", "server", "--arch", "aarch64"]
-  ,["-n", "34"]
+  ,["-l", "34"]
   ]
 
 main :: IO ()

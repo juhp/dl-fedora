@@ -21,6 +21,8 @@ Usage examples:
 
 `dl-fedora --run 34` : will download Fedora 34 Workstation and boot the Live image with qemu-kvm.
 
+`dl-fedora --local rawhide` : shows the current locally available image (as well as the latest one).
+
 By default dl-fedora downloads to `~/Downloads/`, but if you create
 `~/Downloads/iso/` it will use that directory instead.
 

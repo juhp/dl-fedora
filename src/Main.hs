@@ -109,6 +109,7 @@ main = do
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> checkSumOpts
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
+    <*> switchWith 'l' "local" "Show current local image via symlink"
     <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> switchWith 'R' "replace" "Delete old image after downloading new one"
     <*> optional mirrorOpt
@@ -126,8 +127,8 @@ main = do
       flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
       flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
+program gpg checksum dryrun local run removeold mmirror arch edition tgtrel = do
   let mirror =
         case mmirror of
           Nothing | tgtrel == "koji" -> kojiPkgs
@@ -142,12 +143,20 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
         let path = makeRelative home dlDir in
           if isRelative path then "~" </> path else path
   (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror showdestdir
-  downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
+  unless local $
+    downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
   unless dryrun $ do
-    let localfile = takeFileName fileurl
-        symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
-    updateSymlink localfile symlink showdestdir
-    when run $ bootImage localfile showdestdir
+    let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
+    if local
+      then if run
+           then bootImage symlink showdestdir
+           else do
+           putStrLn $ "Latest: " ++ takeFileName fileurl ++ "\n"
+           showSymlink symlink showdestdir
+      else do
+      let localfile = takeFileName fileurl
+      updateSymlink localfile symlink showdestdir
+      when run $ bootImage localfile showdestdir
   where
     setDownloadDir home = do
       dlDir <- getUserDir "DOWNLOAD"
@@ -212,7 +221,7 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
                 findMirror masterUrl path file
               else findMirror masterUrl path file
           mlocaltime <- httpTimestamp masterUrl
-          unless (run && already) $
+          unless (run && already || local) $
             maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
           let finalDir = dropFileName finalurl
           return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
@@ -339,8 +348,8 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           mirrorSize <- httpFileSize mgr url
           unless (mirrorSize == masterSize) $
             putStrLn "Warning!  Mirror filesize differs from master file"
-        putStrLn url
-        if dryrun then return Nothing
+        unless local $ putStrLn url
+        if dryrun || local then return Nothing
           else do
           cmd_ "curl" ["-C", "-", "-O", url]
           return (Just True)
@@ -424,6 +433,17 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           putStrLn ""
           createSymbolicLink target symlink
           putStrLn $ unwords [showdestdir </> symlink, "->", target]
+
+    showSymlink :: FilePath -> FilePath -> IO ()
+    showSymlink symlink showdestdir = do
+      msymlinkTarget <- do
+        havefile <- doesFileExist symlink
+        if havefile
+          then Just <$> readSymbolicLink symlink
+          else return Nothing
+      case msymlinkTarget of
+        Just symlinktarget -> putStrLn $ showdestdir </> symlinktarget
+        _ -> return ()
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
