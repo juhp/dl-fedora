@@ -45,7 +45,6 @@ import qualified Text.ParserCombinators.ReadP as R
 import qualified Text.ParserCombinators.ReadPrec as RP
 import Text.Regex.Posix
 
-{-# ANN module "HLint: ignore Use camelCase" #-}
 data FedoraEdition = Cloud
                    | Container
                    | Everything
