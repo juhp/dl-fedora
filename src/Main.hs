@@ -329,25 +329,26 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition] ++ middle)
 
-    downloadFile :: Bool -> Manager -> URL -> (URL, Maybe Integer) -> IO Bool
+    downloadFile :: Bool -> Manager -> URL -> (URL, Maybe Integer)
+                 -> IO (Maybe Bool)
     downloadFile done mgr url (masterUrl,masterSize) =
       if done
-        then return False
+        then return (Just False)
         else do
         when (url /= masterUrl) $ do
           mirrorSize <- httpFileSize mgr url
           unless (mirrorSize == masterSize) $
             putStrLn "Warning!  Mirror filesize differs from master file"
         putStrLn url
-        if dryrun then return False
+        if dryrun then return Nothing
           else do
           cmd_ "curl" ["-C", "-", "-O", url]
-          return True
+          return (Just True)
 
-    fileChecksum :: Manager -> Maybe URL -> String -> Bool -> IO ()
+    fileChecksum :: Manager -> Maybe URL -> String -> Maybe Bool -> IO ()
     fileChecksum _ Nothing _ _ = return ()
-    fileChecksum mgr (Just url) showdestdir needChecksum =
-      when ((needChecksum && checksum /= NoCheckSum) || checksum == CheckSum) $ do
+    fileChecksum mgr (Just url) showdestdir mneedChecksum =
+      when ((mneedChecksum == Just True && checksum /= NoCheckSum) || (isJust mneedChecksum && checksum == CheckSum)) $ do
         let checksumdir = ".dl-fedora-checksums"
             checksumfile = checksumdir </> takeFileName url
         exists <- do
