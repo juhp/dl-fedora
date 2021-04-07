@@ -163,9 +163,11 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
         if dirExists
           then setCWD dlDir
           else do
-          unless dryrun $
+          if dryrun
+            then return dlDir
+            else do
             createDirectoryIfMissing True dlDir
-          setCWD dlDir
+            setCWD dlDir
 
     setCWD :: FilePath -> IO FilePath
     setCWD dir = do
