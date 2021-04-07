@@ -23,8 +23,9 @@ Usage examples:
 
 `dl-fedora --local rawhide` : shows the current locally available image (as well as the latest one).
 
-By default dl-fedora downloads to `~/Downloads/`, but if you create
-`~/Downloads/iso/` it will use that directory instead.
+By default dl-fedora downloads to `~/Downloads/`
+(correctly the XDG user "DOWNLOADS" directory),
+but if you create `~/Downloads/iso/` it will use that directory instead.
 
 If the image is already found to be downloaded
 it will not be downloaded again of course.
