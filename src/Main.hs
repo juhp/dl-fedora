@@ -352,13 +352,14 @@ program gpg checksum dryrun run removeold mmirror arch edition tgtrel = do
             checksumfile = checksumdir </> takeFileName url
         exists <- do
           dirExists <- doesDirectoryExist checksumdir
-          if dirExists then checkChecksumfile mgr url checksumfile showdestdir
+          if dirExists
+            then checkChecksumfile mgr url checksumfile showdestdir
             else createDirectory checksumdir >> return False
         putStrLn ""
         unless exists $
           whenM (httpExists mgr url) $
-            withCurrentDirectory checksumdir $
-            cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
+          withCurrentDirectory checksumdir $
+          cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
         haveChksum <- doesFileExist checksumfile
         if not haveChksum
           then putStrLn "No checksum file found"
