@@ -143,9 +143,9 @@ program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
     then do
     symlink <- if dryrun
       then do
-      filenamePrefix <- getFilePrefix showdestdir
+      filePrefix <- getFilePrefix showdestdir
       -- FIXME support non-iso
-      return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
+      return $ filePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
       else do
       (fileurl, filenamePrefix, (_masterUrl,_masterSize), _mchecksum, _done) <- findURL mgr mirror showdestdir
       putStrLn $ "Newest " ++ takeFileName fileurl ++ "\n"
@@ -260,10 +260,12 @@ program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
     getFilePrefix showdestdir = do
       let prefixPat = makeFilePrefix getRelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
+      -- FIXME filter to symlinks only
       files <- listDirectory "."
       case find selector files of
-        Nothing ->
-          error' $ "no match for " <> prefixPat <> " in " <> showdestdir
+        Nothing -> return $ if '*' `elem` prefixPat
+          then error' $ "no match for " <> prefixPat <> " in " <> showdestdir
+          else prefixPat
         Just file -> do
           let prefix = if '*' `elem` prefixPat
                        then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
