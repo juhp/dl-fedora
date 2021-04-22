@@ -22,4 +22,3 @@
 - catch: HandshakeFailed (Error_Protocol ("certificate has expired",True,CertificateExpired))
   - maybe in http-directory?
 - delete older snapshot images
-- --local without checking remote (or maybe --local --dryrun?)

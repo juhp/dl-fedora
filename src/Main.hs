@@ -142,18 +142,25 @@ program gpg checksum dryrun local run removeold mmirror arch edition tgtrel = do
   let showdestdir =
         let path = makeRelative home dlDir in
           if isRelative path then "~" </> path else path
-  (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror showdestdir
-  unless local $
-    downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
-  unless dryrun $ do
-    let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
-    if local
-      then if run
-           then bootImage symlink showdestdir
-           else do
-           putStrLn $ "Latest: " ++ takeFileName fileurl ++ "\n"
-           showSymlink symlink showdestdir
+  if local
+    then do
+    symlink <- if dryrun
+      then do
+      filenamePrefix <- getFilePrefix dlDir showdestdir
+      -- FIXME support non-iso
+      return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
       else do
+      (fileurl, filenamePrefix, (_masterUrl,_masterSize), _mchecksum, _done) <- findURL mgr mirror showdestdir
+      putStrLn $ "Newest " ++ takeFileName fileurl ++ "\n"
+      return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
+    if run
+      then bootImage symlink showdestdir
+      else showSymlink symlink showdestdir
+    else do
+    (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror showdestdir
+    let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
+    downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
+    unless dryrun $ do
       let localfile = takeFileName fileurl
       updateSymlink localfile symlink showdestdir
       when run $ bootImage localfile showdestdir
@@ -250,6 +257,29 @@ program gpg checksum dryrun local run removeold mmirror arch edition tgtrel = do
                       if exists then return url
                         else return masterUrl
             return (url,False)
+
+    getFilePrefix :: FilePath -> String -> IO String
+    getFilePrefix dlDir showdestdir = do
+      let prefixPat = makeFilePrefix getRelease
+          selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
+      files <- listDirectory dlDir
+      case find selector files of
+        Nothing ->
+          error' $ "no match for " <> prefixPat <> " in " <> showdestdir
+        Just file -> do
+          let prefix = if '*' `elem` prefixPat
+                       then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
+                       else prefixPat
+          return prefix
+
+    getRelease :: Maybe String
+    getRelease =
+      case tgtrel of
+        "rawhide" -> Just "Rawhide"
+        "respin" -> Nothing
+        "eln" -> Nothing
+        rel | all isDigit rel -> Just rel
+        _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
 
     checkLocalFileSize localfile masterSize showdestdir = do
       localsize <- toInteger . fileSize <$> getFileStatus localfile

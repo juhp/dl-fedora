@@ -14,6 +14,7 @@ tests =
   ,["-n", "33", "-e", "everything"]
   ,["-n", "33", "-e", "server", "--arch", "aarch64"]
   ,["-l", "34"]
+  ,["-n", "-l", "rawhide"]
   ]
 
 main :: IO ()
