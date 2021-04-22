@@ -137,16 +137,13 @@ program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
           Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
           Just m -> m
   home <- getHomeDirectory
-  dlDir <- setDownloadDir home
+  showdestdir <- setDownloadDir home
   mgr <- httpManager
-  let showdestdir =
-        let path = makeRelative home dlDir in
-          if isRelative path then "~" </> path else path
   if local
     then do
     symlink <- if dryrun
       then do
-      filenamePrefix <- getFilePrefix dlDir showdestdir
+      filenamePrefix <- getFilePrefix showdestdir
       -- FIXME support non-iso
       return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
       else do
@@ -184,11 +181,12 @@ program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
             else do
             createDirectoryIfMissing True dlDir
             setCWD dlDir
-
-    setCWD :: FilePath -> IO FilePath
-    setCWD dir = do
-      setCurrentDirectory dir
-      return dir
+      where
+        setCWD :: FilePath -> IO FilePath
+        setCWD dir = do
+          setCurrentDirectory dir
+          let path = makeRelative home dir
+          return $ if isRelative path then "~" </> path else path
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
     findURL :: Manager -> String -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
@@ -258,11 +256,11 @@ program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
                         else return masterUrl
             return (url,False)
 
-    getFilePrefix :: FilePath -> String -> IO String
-    getFilePrefix dlDir showdestdir = do
+    getFilePrefix :: String -> IO String
+    getFilePrefix showdestdir = do
       let prefixPat = makeFilePrefix getRelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
-      files <- listDirectory dlDir
+      files <- listDirectory "."
       case find selector files of
         Nothing ->
           error' $ "no match for " <> prefixPat <> " in " <> showdestdir
