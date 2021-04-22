@@ -33,6 +33,8 @@ executable dl-fedora
                        directory >= 1.2.5,
                        extra,
                        filepath,
+                       http-client,
+                       http-client-tls,
                        http-directory == 0.1.5 || >= 0.1.8,
                        http-types,
                        optparse-applicative,

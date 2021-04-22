@@ -18,6 +18,9 @@ import Data.Maybe
 import qualified Data.Text as T
 import Data.Time.LocalTime (utcToLocalZonedTime)
 
+import Network.HTTP.Client (managerResponseTimeout, newManager,
+                            responseTimeoutNone)
+import Network.HTTP.Client.TLS
 import Network.HTTP.Directory
 
 import Options.Applicative (fullDesc, header, progDescDoc)
@@ -109,6 +112,7 @@ main = do
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> checkSumOpts
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
+    <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
     <*> switchWith 'l' "local" "Show current local image via symlink"
     <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> switchWith 'R' "replace" "Delete old image after downloading new one"
@@ -127,8 +131,8 @@ main = do
       flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
       flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> String -> FedoraEdition -> IO ()
-program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> String -> FedoraEdition -> IO ()
+program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel edition = do
   let mirror =
         case mmirror of
           Nothing | tgtrel == "koji" -> kojiPkgs
@@ -138,7 +142,9 @@ program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
           Just m -> m
   home <- getHomeDirectory
   showdestdir <- setDownloadDir home
-  mgr <- httpManager
+  mgr <- if notimeout
+         then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
+         else httpManager
   if local
     then do
     symlink <- if dryrun

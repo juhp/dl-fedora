@@ -4,7 +4,7 @@ import SimpleCmd
 
 dlFedora :: [String] -> IO ()
 dlFedora args =
-  putStrLn "" >> cmdLog "dl-fedora" args
+  putStrLn "" >> cmdLog "dl-fedora" ("-T" : args)
 
 tests :: Maybe String -> [[String]]
 tests mGhAction =
