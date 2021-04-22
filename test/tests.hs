@@ -7,14 +7,14 @@ dlFedora args =
 tests :: [[String]]
 tests =
   [["-n", "33", "-c"]
-  ,["-n", "rawhide", "-e", "silverblue"]
-  ,["-n", "34", "-e", "silverblue"]
+  ,["-n", "rawhide", "silverblue"]
+  ,["-n", "34", "silverblue"]
   ,["-n", "respin"]
-  ,["-n", "32", "-e", "kde"]
-  ,["-n", "33", "-e", "everything"]
-  ,["-n", "33", "-e", "server", "--arch", "aarch64"]
+  ,["-n", "32", "kde"]
+  ,["-n", "33", "everything"]
+  ,["-n", "33", "server", "--arch", "aarch64"]
   ,["-l", "34"]
-  ,["-n", "-l", "rawhide"]
+  ,["-l", "rawhide", "-n"]
   ]
 
 main :: IO ()

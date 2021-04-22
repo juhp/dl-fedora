@@ -99,7 +99,7 @@ main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
                P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "or koji"]),
-               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace),
+               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
                P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
@@ -114,8 +114,8 @@ main = do
     <*> switchWith 'R' "replace" "Delete old image after downloading new one"
     <*> optional mirrorOpt
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
-    <*> optionalWith auto 'e' "edition" "EDITION" "Fedora edition [default: workstation]" Workstation
     <*> strArg "RELEASE"
+    <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
   where
     mirrorOpt :: Parser String
     mirrorOpt =
@@ -127,8 +127,8 @@ main = do
       flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
       flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> FedoraEdition -> String -> IO ()
-program gpg checksum dryrun local run removeold mmirror arch edition tgtrel = do
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> String -> FedoraEdition -> IO ()
+program gpg checksum dryrun local run removeold mmirror arch tgtrel edition = do
   let mirror =
         case mmirror of
           Nothing | tgtrel == "koji" -> kojiPkgs
