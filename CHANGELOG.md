@@ -3,6 +3,7 @@
 ## 0.9 (2021-04-22)
 - edition is now an argument after release, not an option
 - --local --dryrun only accesses local files now for speed
+- add '--no-http-timeout' (mostly for CI)
 
 ## 0.8 (2021-04-07)
 - --local option: print (or --run) current local image instead of newer download
