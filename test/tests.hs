@@ -2,29 +2,30 @@ import Data.Maybe
 import System.Environment (lookupEnv)
 import SimpleCmd
 
-dlFedora :: [String] -> IO ()
-dlFedora args =
-  putStrLn "" >> cmdLog "dl-fedora" ("-T" : args)
+dlFedora :: Bool -> [String] -> IO ()
+dlFedora ghAction args =
+  putStrLn "" >> cmdLog "dl-fedora"
+  ((if ghAction then ("-T" :) else id) args)
 
-tests :: Maybe String -> [[String]]
-tests mGhAction =
+tests :: Bool -> [[String]]
+tests ghAction =
   [["-n", "33", "-c"]
   ,["-n", "rawhide", "silverblue"]
   ,["-n", "respin"]
   ,["-l", "34"]
   ,["-l", "rawhide", "-n"]
   ] ++
-  if isJust mGhAction then []
+  if ghAction then []
   else
     [["-n", "34", "silverblue"]
     ,["-n", "32", "kde"]
-    ,["-n", "33", "everything"]
+    ,["-T", "-n", "33", "everything"]
     ,["-n", "33", "server", "--arch", "aarch64"]
     ]
 
 main :: IO ()
 main = do
-  mGhAction <- lookupEnv "GITHUB_ACTIONS"
-  let cases = tests mGhAction
-  mapM_ dlFedora cases
+  ghAction <- isJust <$> lookupEnv "GITHUB_ACTIONS"
+  let cases = tests ghAction
+  mapM_ (dlFedora ghAction) cases
   putStrLn $ show cases ++ " tests run"
