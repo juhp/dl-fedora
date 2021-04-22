@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9 (2021-04-22)
+- edition is now an argument after release, not an option
+- --local --dryrun only accesses local files now for speed
+
 ## 0.8 (2021-04-07)
 - --local option: print (or --run) current local image instead of newer download
 - improve --dryrun Downloads/ handling for testsuite in CI

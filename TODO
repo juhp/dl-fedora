@@ -1,3 +1,5 @@
+- --list all latest images
+
 - warn if dir hasn't var_run_t permission
 - download to a .hidden file and then rename
 - coreos Live
