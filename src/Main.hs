@@ -140,8 +140,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           Nothing -> downloadFpo
           Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
           Just m -> m
-  home <- getHomeDirectory
-  showdestdir <- setDownloadDir home
+  showdestdir <- setDownloadDir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
@@ -168,7 +167,8 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       updateSymlink localfile symlink showdestdir
       when run $ bootImage localfile showdestdir
   where
-    setDownloadDir home = do
+    setDownloadDir = do
+      home <- getHomeDirectory
       dlDir <- getUserDir "DOWNLOAD"
       dirExists <- doesDirectoryExist dlDir
       unless (dryrun || dirExists) $
@@ -176,7 +176,8 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           error' "HOME directory does not exist!"
       let isoDir = dlDir </> "iso"
       isoExists <- doesDirectoryExist isoDir
-      if isoExists
+      dir <-
+        if isoExists
         then setCWD isoDir
         else
         if dirExists
@@ -187,12 +188,13 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
             else do
             createDirectoryIfMissing True dlDir
             setCWD dlDir
+      let path = makeRelative home dir
+      return $ if isRelative path then "~" </> path else path
       where
         setCWD :: FilePath -> IO FilePath
         setCWD dir = do
           setCurrentDirectory dir
-          let path = makeRelative home dir
-          return $ if isRelative path then "~" </> path else path
+          return dir
 
     -- urlpath, fileprefix, (master,size), checksum, downloaded
     findURL :: Manager -> String -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
