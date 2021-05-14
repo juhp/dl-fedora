@@ -32,14 +32,12 @@ import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
                   removePrefix)
 import SimpleCmdArgs
 
-import System.Directory (createDirectory, createDirectoryIfMissing,
-                         doesDirectoryExist, doesFileExist, findExecutable,
-                         getHomeDirectory, getPermissions, listDirectory,
-                         removeFile, setCurrentDirectory, withCurrentDirectory,
+import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
+                         findExecutable, getPermissions,
+                         listDirectory, removeFile, withCurrentDirectory,
                          writable)
-import System.Environment.XDG.UserDir (getUserDir)
-import System.FilePath (dropFileName, isRelative , joinPath, makeRelative,
-                        takeExtension, takeFileName, (<.>))
+import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
+                        (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -47,6 +45,8 @@ import Text.Read
 import qualified Text.ParserCombinators.ReadP as R
 import qualified Text.ParserCombinators.ReadPrec as RP
 import Text.Regex.Posix
+
+import DownloadDir
 
 data FedoraEdition = Cloud
                    | Container
@@ -140,7 +140,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           Nothing -> downloadFpo
           Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
           Just m -> m
-  showdestdir <- setDownloadDir
+  showdestdir <- setDownloadDir dryrun "iso"
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
@@ -167,35 +167,6 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       updateSymlink localfile symlink showdestdir
       when run $ bootImage localfile showdestdir
   where
-    setDownloadDir = do
-      home <- getHomeDirectory
-      dlDir <- getUserDir "DOWNLOAD"
-      dirExists <- doesDirectoryExist dlDir
-      unless (dryrun || dirExists) $
-        when (home == dlDir) $
-          error' "HOME directory does not exist!"
-      let isoDir = dlDir </> "iso"
-      isoExists <- doesDirectoryExist isoDir
-      dir <-
-        if isoExists
-        then setCWD isoDir
-        else
-        if dirExists
-          then setCWD dlDir
-          else do
-          if dryrun
-            then return dlDir
-            else do
-            createDirectoryIfMissing True dlDir
-            setCWD dlDir
-      let path = makeRelative home dir
-      return $ if isRelative path then "~" </> path else path
-      where
-        setCWD :: FilePath -> IO FilePath
-        setCWD dir = do
-          setCurrentDirectory dir
-          return dir
-
     -- urlpath, fileprefix, (master,size), checksum, downloaded
     findURL :: Manager -> String -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
     findURL mgr mirror showdestdir = do
