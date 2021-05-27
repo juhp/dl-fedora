@@ -295,8 +295,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
     testRelease mgr subdir = do
       let path = "fedora/linux" </> "releases/test"
           url = dlFpo </> path
-      -- use http-directory-0.1.7 noTrailingSlash
-      rels <- map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
+      rels <- map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
 
@@ -305,7 +304,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       let path = "alt/stage"
           url = dlFpo </> path
       -- use http-directory-0.1.7 noTrailingSlash
-      rels <- reverse . map (T.unpack . T.dropWhileEnd (== '/')) <$> httpDirectory mgr url
+      rels <- reverse . map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
 
@@ -491,3 +490,8 @@ bootImage img showdir = do
       cmdN qemu (args ++ [showdir </> img])
       cmd_ qemu (args ++ [img])
     Nothing -> error' "Need qemu to run image"
+
+#if !MIN_VERSION_http_directory(0,1,6)
+noTrailingSlash :: T.Text -> T.Text
+noTrailingSlash = T.dropWhileEnd (== '/')
+#endif
