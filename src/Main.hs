@@ -167,8 +167,9 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       updateSymlink localfile symlink showdestdir
       when run $ bootImage localfile showdestdir
   where
-    -- urlpath, fileprefix, (master,size), checksum, downloaded
-    findURL :: Manager -> String -> String -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
+    findURL :: Manager -> String -> String
+            -- urlpath, fileprefix, (master,size), checksum, downloaded
+            -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
     findURL mgr mirror showdestdir = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
