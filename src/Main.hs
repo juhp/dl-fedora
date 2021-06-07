@@ -37,7 +37,7 @@ import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
                          listDirectory, removeFile, withCurrentDirectory,
                          writable)
 import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
-                        (<.>))
+                        (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 
@@ -176,7 +176,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
             (case tgtrel of
                "koji" -> kojiPkgs
                "eln" -> odcsFpo
-               _ -> dlFpo) </> path <> "/"
+               _ -> dlFpo) +/+ path <> "/"
       hrefs <- httpDirectory mgr masterDir
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
@@ -189,7 +189,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           let prefix = if '*' `elem` prefixPat
                        then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
                        else prefixPat
-              masterUrl = masterDir </> file
+              masterUrl = masterDir +/+ file
           masterSize <- httpFileSize mgr masterUrl
           (finalurl, already) <- do
             let localfile = takeFileName masterUrl
@@ -208,7 +208,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           unless (run && already || local) $
             maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
           let finalDir = dropFileName finalurl
-          return (finalurl, prefix, (masterUrl,masterSize), (finalDir </>) . T.unpack <$> mchecksum, already)
+          return (finalurl, prefix, (masterUrl,masterSize), (finalDir +/+) . T.unpack <$> mchecksum, already)
         where
           httpTimestamp url = do
             mUtc <- httpLastModified mgr url
@@ -223,11 +223,11 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
             url <-
               if mirror `elem` [dlFpo,kojiPkgs,odcsFpo] then return masterUrl
                 else
-                if mirror /= downloadFpo then return $ mirror </> path
+                if mirror /= downloadFpo then return $ mirror +/+ path +/+ file
                 else do
-                  redir <- httpRedirect mgr $ mirror </> path </> file
+                  redir <- httpRedirect mgr $ mirror +/+ path +/+ file
                   case redir of
-                    Nothing -> error' $ mirror </> path </> file <> " redirect failed"
+                    Nothing -> error' $ mirror +/+ path +/+ file <> " redirect failed"
                     Just u -> do
                       let url = B.unpack u
                       exists <- httpExists mgr url
@@ -283,52 +283,52 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
             else joinPath [showEdition edition, arch, editionMedia edition]
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
-        "rawhide" -> return ("fedora/linux/development/rawhide" </> subdir, Just "Rawhide")
+        "rawhide" -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
         "test" -> testRelease mgr subdir
         "stage" -> stageRelease mgr subdir
-        "eln" -> return ("production/latest-Fedora-ELN/compose" </> "Everything" </> arch </> "iso", Nothing)
+        "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "Everything" +/+ arch +/+ "iso", Nothing)
         "koji" -> kojiCompose mgr subdir
         rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
 
     testRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
     testRelease mgr subdir = do
-      let path = "fedora/linux" </> "releases/test"
-          url = dlFpo </> path
+      let path = "fedora/linux" +/+ "releases/test"
+          url = dlFpo +/+ path
       rels <- map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
-      return (path </> fromMaybe (error' ("test release not found in " <> url)) mrel </> subdir, mrel)
+      return (path +/+ fromMaybe (error' ("test release not found in " <> url)) mrel +/+ subdir, mrel)
 
     stageRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
     stageRelease mgr subdir = do
       let path = "alt/stage"
-          url = dlFpo </> path
+          url = dlFpo +/+ path
       -- use http-directory-0.1.7 noTrailingSlash
       rels <- reverse . map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
-      return (path </> fromMaybe (error' ("staged release not found in " <> url)) mrel </> subdir, takeWhile (/= '_') <$> mrel)
+      return (path +/+ fromMaybe (error' ("staged release not found in " <> url)) mrel +/+ subdir, takeWhile (/= '_') <$> mrel)
 
     kojiCompose :: Manager -> FilePath -> IO (FilePath, Maybe String)
     kojiCompose mgr subdir = do
       let path = "branched"
-          url = kojiPkgs </> path
+          url = kojiPkgs +/+ path
           prefix = "latest-Fedora-"
       latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> httpDirectory mgr url
       let mlatest = listToMaybe latest
-      return (path </> fromMaybe (error' ("koji branched latest dir not not found in " <> url)) mlatest </> "compose" </> subdir, removePrefix prefix <$> mlatest)
+      return (path +/+ fromMaybe (error' ("koji branched latest dir not not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
 
     -- use https://admin.fedoraproject.org/pkgdb/api/collections ?
     released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
     released mgr rel subdir = do
       let dir = "fedora/linux/releases"
-          url = dlFpo </> dir
-      exists <- httpExists mgr $ url </> rel
-      if exists then return (dir </> rel </> subdir, Just rel)
+          url = dlFpo +/+ dir
+      exists <- httpExists mgr $ url +/+ rel
+      if exists then return (dir +/+ rel +/+ subdir, Just rel)
         else do
         let dir' = "fedora/linux/development"
-            url' = dlFpo </> dir'
-        exists' <- httpExists mgr $ url' </> rel
-        if exists' then return (dir' </> rel </> subdir, Just rel)
+            url' = dlFpo +/+ dir'
+        exists' <- httpExists mgr $ url' +/+ rel
+        if exists' then return (dir' +/+ rel +/+ subdir, Just rel)
           else error' "release not found in releases/ or development/"
 
     makeFilePrefix :: Maybe String -> String
@@ -469,14 +469,6 @@ editionMedia _ = "iso"
 liveRespin :: FedoraEdition -> String
 liveRespin = take 4 . upper . showEdition
 
-infixr 5 </>
-(</>) :: String -> String -> String
-"" </> s = s
-s </> "" = s
-s </> t | last s == '/' = init s </> t
-        | head t == '/' = s </> tail t
-s </> t = s <> "/" <> t
-
 bootImage :: FilePath -> String -> IO ()
 bootImage img showdir = do
   let fileopts =
@@ -495,3 +487,12 @@ bootImage img showdir = do
 noTrailingSlash :: T.Text -> T.Text
 noTrailingSlash = T.dropWhileEnd (== '/')
 #endif
+
+-- from next http-directory or http-query
+infixr 5 +/+
+(+/+) :: String -> String -> String
+"" +/+ s = s
+s +/+ "" = s
+s +/+ t | last s == '/' = init s +/+ t
+        | head t == '/' = s +/+ tail t
+s +/+ t = s ++ "/" ++ t
