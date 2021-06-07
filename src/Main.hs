@@ -91,17 +91,19 @@ fedoraSpins = [Cinnamon ..]
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
 
-dlFpo, downloadFpo, kojiPkgs, odcsFpo :: String
+dlFpo, downloadFpo, kojiPkgs, odcsFpo, composesStream, odcsStream :: String
 dlFpo = "https://dl.fedoraproject.org/pub"
 downloadFpo = "https://download.fedoraproject.org/pub"
 kojiPkgs = "https://kojipkgs.fedoraproject.org/compose"
 odcsFpo = "https://odcs.fedoraproject.org/composes"
+composesStream = "https://composes.stream.centos.org"
+odcsStream = "https://odcs.stream.centos.org"
 
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "or koji"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "stream", "or koji"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -137,6 +139,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         case mmirror of
           Nothing | tgtrel == "koji" -> kojiPkgs
           Nothing | tgtrel == "eln" -> odcsFpo
+          Nothing | tgtrel == "stream" -> composesStream
           Nothing -> downloadFpo
           Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
           Just m -> m
@@ -177,6 +180,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
             (case tgtrel of
                "koji" -> kojiPkgs
                "eln" -> odcsFpo
+               "stream" -> odcsStream
                _ -> dlFpo) +/+ path <> "/"
       hrefs <- httpDirectory mgr masterDir
       let prefixPat = makeFilePrefix mrelease
@@ -258,6 +262,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         "rawhide" -> Just "Rawhide"
         "respin" -> Nothing
         "eln" -> Nothing
+        "stream" -> Nothing
         rel | all isDigit rel -> Just rel
         _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
 
@@ -288,6 +293,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         "test" -> testRelease mgr subdir
         "stage" -> stageRelease mgr subdir
         "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "Everything" +/+ arch +/+ "iso", Nothing)
+        "stream" -> return ("test/latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ arch +/+ "iso", Nothing)
         "koji" -> kojiCompose mgr subdir
         rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
@@ -337,6 +343,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       case tgtrel of
         "respin" -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
         "eln" -> "Fedora-ELN-Rawhide"
+        "stream" -> "CentOS-Stream-9"
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
