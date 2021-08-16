@@ -51,6 +51,7 @@ import DownloadDir
 data FedoraEdition = Cloud
                    | Container
                    | Everything
+                   | Kinoite
                    | Server
                    | Silverblue
                    | Workstation
@@ -463,6 +464,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
+editionType Kinoite = "ostree"
 editionType Silverblue = "ostree"
 editionType Everything = "netinst"
 editionType Cloud = "Base"
