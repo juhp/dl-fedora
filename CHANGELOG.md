@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1 (2021-08-30)
+- new Kinoite edition for F35
+- initial Centos Stream "c9s" target for production boot images
+
 ## 0.9 (2021-04-22)
 - edition is now an argument after release, not an option
 - --local --dryrun only accesses local files now for speed

@@ -1,3 +1,6 @@
+- support c9s devel and test composes
+- support c8s requires extracting mirror url
+
 - --list all latest images
 
 - warn if dir hasn't var_run_t permission
