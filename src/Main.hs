@@ -418,7 +418,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         else do
         masterSize <- httpFileSize mgr url
         ok <- checkLocalFileSize checksumfile masterSize showdestdir
-        unless ok $ error' "Checksum file filesize mismatch"
+        unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
 
     checkForFedoraKeys :: IO Bool
