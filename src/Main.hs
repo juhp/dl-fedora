@@ -304,7 +304,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       let path = "fedora/linux" +/+ "releases/test"
           url = dlFpo +/+ path
       rels <- map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
-      let mrel = listToMaybe rels
+      let mrel = if null rels then Nothing else Just (last rels)
       return (path +/+ fromMaybe (error' ("test release not found in " <> url)) mrel +/+ subdir, mrel)
 
     stageRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
