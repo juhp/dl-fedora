@@ -12,13 +12,13 @@ Usage examples:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora 34 silverblue` : downloads the Fedora Silverblue iso
+`dl-fedora 35 silverblue` : downloads the Fedora Silverblue iso
 
 `dl-fedora respin kde` : downloads the latest KDE Live respin
 
-`dl-fedora 33 server --arch aarch64` : will bring down the F33 Server iso for armv8
+`dl-fedora 34 server --arch aarch64` : will bring down the Server iso for armv8
 
-`dl-fedora --run 34` : will download Fedora 34 Workstation and boot the Live image with qemu-kvm.
+`dl-fedora --run 35` : will download Fedora Workstation and boot the Live image with qemu-kvm.
 
 `dl-fedora --local rawhide` : shows the current locally available image (as well as the latest one). With `--dryrun` it doesn't check for newest iso.
 

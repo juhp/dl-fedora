@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.2 (2021-10-01)
+- fix test (beta) image selection to be the latest version
+
 ## 0.9.1 (2021-08-30)
 - new Kinoite edition for F35
 - initial Centos Stream "c9s" target for production boot images
