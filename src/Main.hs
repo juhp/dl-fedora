@@ -409,6 +409,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
             pipeFile_ checksumfile ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
             else do
             putStrLn $ "Running " <> shasum <> ":"
+            -- FIXME ignore other downloaded iso's (eg partial images error)
             cmd_ shasum ["-c", "--ignore-missing", checksumfile]
 
     checkChecksumfile :: Manager -> URL -> FilePath -> String -> IO Bool
