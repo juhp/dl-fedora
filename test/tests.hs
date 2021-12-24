@@ -28,4 +28,4 @@ main = do
   ghAction <- isJust <$> lookupEnv "GITHUB_ACTIONS"
   let cases = tests ghAction
   mapM_ (dlFedora ghAction) cases
-  putStrLn $ show cases ++ " tests run"
+  putStrLn $ show (length cases) ++ " tests ran"
