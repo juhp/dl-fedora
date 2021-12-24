@@ -499,7 +499,7 @@ noTrailingSlash :: T.Text -> T.Text
 noTrailingSlash = T.dropWhileEnd (== '/')
 #endif
 
--- from next http-directory or http-query
+#if !MIN_VERSION_http_directory(0,1,9)
 infixr 5 +/+
 (+/+) :: String -> String -> String
 "" +/+ s = s
@@ -507,3 +507,4 @@ s +/+ "" = s
 s +/+ t | last s == '/' = init s +/+ t
         | head t == '/' = s +/+ tail t
 s +/+ t = s ++ "/" ++ t
+#endif
