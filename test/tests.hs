@@ -9,18 +9,18 @@ dlFedora ghAction args =
 
 tests :: Bool -> [[String]]
 tests ghAction =
-  [["-n", "34", "-c"]
+  [["-n", "35", "-c"]
   ,["-n", "rawhide", "silverblue"]
   ,["-n", "respin"]
-  ,["-l", "35"]
+  ,["-l", "36"]
   ,["-l", "rawhide", "-n"]
   ] ++
   if ghAction then []
   else
-    [["-n", "35", "silverblue"]
-    ,["-n", "33", "kde"]
-    ,["-T", "-n", "34", "everything"]
-    ,["-n", "34", "server", "--arch", "aarch64"]
+    [["-n", "36", "silverblue"]
+    ,["-n", "34", "kde"]
+    ,["-T", "-n", "35", "everything"]
+    ,["-n", "35", "server", "--arch", "aarch64"]
     ]
 
 main :: IO ()
