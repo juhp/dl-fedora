@@ -118,7 +118,7 @@ main = do
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
     <*> switchWith 'l' "local" "Show current local image via symlink"
     <*> switchWith 'r' "run" "Boot image in Qemu"
-    <*> switchWith 'R' "replace" "Delete old image after downloading new one"
+    <*> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one"
     <*> optional mirrorOpt
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
     <*> strArg "RELEASE"
