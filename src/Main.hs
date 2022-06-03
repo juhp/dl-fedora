@@ -16,7 +16,8 @@ import Data.Char (isDigit)
 import Data.List.Extra
 import Data.Maybe
 import qualified Data.Text as T
-import Data.Time.LocalTime (utcToLocalZonedTime)
+import Data.Time (UTCTime)
+import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime)
 
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
@@ -134,6 +135,10 @@ main = do
       flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
       flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
 
+data Primary = Primary {primaryUrl :: String,
+                        primarySize :: Maybe Integer,
+                        primaryTime :: Maybe UTCTime}
+
 program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> String -> FedoraEdition -> IO ()
 program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel edition = do
   let mirror =
@@ -150,84 +155,75 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
          else httpManager
   if local
     then do
-    symlink <- if dryrun
+    symlink <-
+      if dryrun
       then do
       filePrefix <- getFilePrefix showdestdir
       -- FIXME support non-iso
       return $ filePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
       else do
-      (fileurl, filenamePrefix, (_masterUrl,_masterSize), _mchecksum, _done) <- findURL mgr mirror showdestdir
-      putStrLn $ "Newest " ++ takeFileName fileurl ++ "\n"
+      (fileurl, filenamePrefix, _primary, _mchecksum, _done) <-
+        findURL mgr mirror showdestdir
+      putStrLn $ "Newest: " ++ takeFileName fileurl ++ "\n" ++ fileurl
       return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
     if run
       then bootImage symlink showdestdir
       else showSymlink symlink showdestdir
     else do
-    (fileurl, filenamePrefix, (masterUrl,masterSize), mchecksum, done) <- findURL mgr mirror showdestdir
+    (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirror showdestdir
     let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
-    downloadFile done mgr fileurl (masterUrl,masterSize) >>= fileChecksum mgr mchecksum showdestdir
+    downloadFile dryrun done mgr fileurl prime >>= fileChecksum mgr mchecksum showdestdir
     unless dryrun $ do
       let localfile = takeFileName fileurl
       updateSymlink localfile symlink showdestdir
       when run $ bootImage localfile showdestdir
   where
     findURL :: Manager -> String -> String
-            -- urlpath, fileprefix, (master,size), checksum, downloaded
-            -> IO (URL, String, (URL,Maybe Integer), Maybe String, Bool)
+            -- urlpath, fileprefix, primary, checksum, downloaded
+            -> IO (URL, String, Primary, Maybe String, Bool)
     findURL mgr mirror showdestdir = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
-      let masterDir =
+      let primaryDir =
             (case tgtrel of
                "koji" -> kojiPkgs
                "eln" -> odcsFpo
                "c9s" -> odcsStream
                _ -> dlFpo) +/+ path <> "/"
-      hrefs <- httpDirectory mgr masterDir
+      hrefs <- httpDirectory mgr primaryDir
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
           mfile = find selector $ map T.unpack hrefs
           mchecksum = find ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case mfile of
         Nothing ->
-          error' $ "no match for " <> prefixPat <> " in " <> masterDir
+          error' $ "no match for " <> prefixPat <> " in " <> primaryDir
         Just file -> do
           let prefix = if '*' `elem` prefixPat
                        then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
                        else prefixPat
-              masterUrl = masterDir +/+ file
-          masterSize <- httpFileSize mgr masterUrl
+              primeUrl = primaryDir +/+ file
+          (primeSize,primeTime) <- httpFileSizeTime mgr primeUrl
           (finalurl, already) <- do
-            let localfile = takeFileName masterUrl
+            let localfile = takeFileName primeUrl
             exists <- doesFileExist localfile
             if exists
               then do
-              done <- checkLocalFileSize localfile masterSize showdestdir
+              done <- checkLocalFileSize localfile primeSize primeTime showdestdir
               if done
-                then return (masterUrl,True)
+                then return (primeUrl,True)
                 else do
                 unlessM (writable <$> getPermissions localfile) $
                   error' $ localfile <> " does have write permission, aborting!"
-                findMirror masterUrl path file
-              else findMirror masterUrl path file
-          mlocaltime <- httpTimestamp masterUrl
-          unless (run && already || local) $
-            maybe (return ()) putStrLn $ showMSize masterSize <> showMDate mlocaltime
+                findMirror primeUrl path file
+              else findMirror primeUrl path file
           let finalDir = dropFileName finalurl
-          return (finalurl, prefix, (masterUrl,masterSize), (finalDir +/+) . T.unpack <$> mchecksum, already)
+          return (finalurl, prefix, Primary primeUrl primeSize primeTime,
+                  (finalDir +/+) . T.unpack <$> mchecksum, already)
         where
-          httpTimestamp url = do
-            mUtc <- httpLastModified mgr url
-            case mUtc of
-              Nothing -> return Nothing
-              Just u -> Just <$> utcToLocalZonedTime u
-
-          showMSize = fmap (\ s -> "size " <> show s <> " ")
-          showMDate = fmap (\ s -> "(" <> show s <> ")")
-
-          findMirror masterUrl path file = do
+          findMirror primeUrl path file = do
             url <-
-              if mirror `elem` [dlFpo,kojiPkgs,odcsFpo] then return masterUrl
+              if mirror `elem` [dlFpo,kojiPkgs,odcsFpo] then return primeUrl
                 else
                 if mirror /= downloadFpo then return $ mirror +/+ path +/+ file
                 else do
@@ -238,7 +234,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
                       let url = B.unpack u
                       exists <- httpExists mgr url
                       if exists then return url
-                        else return masterUrl
+                        else return primeUrl
             return (url,False)
 
     getFilePrefix :: String -> IO String
@@ -267,19 +263,24 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         rel | all isDigit rel -> Just rel
         _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
 
-    checkLocalFileSize localfile masterSize showdestdir = do
+    checkLocalFileSize :: FilePath -> Maybe Integer -> Maybe UTCTime
+                       -> String -> IO Bool
+    checkLocalFileSize localfile mprimeSize mprimeTime showdestdir = do
       localsize <- toInteger . fileSize <$> getFileStatus localfile
-      if Just localsize == masterSize
+      if Just localsize == mprimeSize
         then do
-        when (not run && takeExtension localfile == ".iso") $
-          putStrLn $ showdestdir </> localfile
+        when (not run && takeExtension localfile == ".iso") $ do
+          tz <- getCurrentTimeZone
+          putStrLn $ showdestdir </> localfile ++ " (size " ++ show localsize ++ " okay) " ++ maybe "" (show . utcToZonedTime tz) mprimeTime
         return True
         else do
-        let showsize =
-              case masterSize of
+        when (isNothing mprimeSize) $
+          putStrLn "original size could not be read"
+        let sizepercent =
+              case mprimeSize of
                 Nothing -> show localsize
                 Just ms -> show (100 * localsize `div` ms) <> "%"
-        putStrLn $ "File " <> showsize <> " downloaded"
+        putStrLn $ "File " <> sizepercent <> " downloaded"
         return False
 
     urlPathMRel :: Manager -> IO (FilePath, Maybe String)
@@ -355,22 +356,6 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition] ++ middle)
 
-    downloadFile :: Bool -> Manager -> URL -> (URL, Maybe Integer)
-                 -> IO (Maybe Bool)
-    downloadFile done mgr url (masterUrl,masterSize) =
-      if done
-        then return (Just False)
-        else do
-        when (url /= masterUrl) $ do
-          mirrorSize <- httpFileSize mgr url
-          unless (mirrorSize == masterSize) $
-            putStrLn "Warning!  Mirror filesize differs from master file"
-        unless local $ putStrLn url
-        if dryrun || local then return Nothing
-          else do
-          cmd_ "curl" ["-C", "-", "-O", url]
-          return (Just True)
-
     fileChecksum :: Manager -> Maybe URL -> String -> Maybe Bool -> IO ()
     fileChecksum _ Nothing _ _ = return ()
     fileChecksum mgr (Just url) showdestdir mneedChecksum =
@@ -417,8 +402,8 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       exists <- doesFileExist checksumfile
       if not exists then return False
         else do
-        masterSize <- httpFileSize mgr url
-        ok <- checkLocalFileSize checksumfile masterSize showdestdir
+        (primeSize,primeTime) <- httpFileSizeTime mgr url
+        ok <- checkLocalFileSize checksumfile primeSize primeTime showdestdir
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
 
@@ -460,8 +445,27 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           then Just <$> readSymbolicLink symlink
           else return Nothing
       case msymlinkTarget of
-        Just symlinktarget -> putStrLn $ showdestdir </> symlinktarget
+        Just symlinktarget ->
+          putStrLn $ "Local: " ++ showdestdir </> symlinktarget
         _ -> return ()
+
+downloadFile :: Bool -> Bool -> Manager -> URL -> Primary -> IO (Maybe Bool)
+downloadFile dryrun done mgr url prime = do
+  putStrLn url
+  if done
+    then return (Just False)
+    else do
+    when (url /= primaryUrl prime) $ do
+      (mirrorSize,mirrorTime) <- httpFileSizeTime mgr url
+      unless (mirrorSize == primarySize prime) $
+        putStrLn "Warning!  Mirror filesize differs from primary file"
+      unless (mirrorTime == primaryTime prime) $
+        putStrLn "Warning!  Mirror timestamp differs from primary file"
+    if dryrun then return Nothing
+      else do
+      putStrLn $ "downloading " ++ takeFileName url
+      cmd_ "curl" ["-C", "-", "-O", url]
+      return (Just True)
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"

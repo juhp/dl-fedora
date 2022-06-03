@@ -37,7 +37,7 @@ executable dl-fedora
                        filepath,
                        http-client,
                        http-client-tls,
-                       http-directory == 0.1.5 || >= 0.1.8,
+                       http-directory >= 0.1.10,
                        http-types,
                        optparse-applicative,
                        regex-posix,
