@@ -17,7 +17,7 @@ import Data.List.Extra
 import Data.Maybe
 import qualified Data.Text as T
 import Data.Time (UTCTime)
-import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime)
+import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime, TimeZone)
 
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
@@ -162,9 +162,11 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       -- FIXME support non-iso
       return $ filePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
       else do
-      (fileurl, filenamePrefix, _primary, _mchecksum, _done) <-
+      (fileurl, filenamePrefix, prime, _mchecksum, _done) <-
         findURL mgr mirror showdestdir
-      putStrLn $ "Newest: " ++ takeFileName fileurl ++ "\n" ++ fileurl
+      tz <- getCurrentTimeZone
+      putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
+      putStrLn fileurl
       return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
     if run
       then bootImage symlink showdestdir
@@ -271,7 +273,8 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         then do
         when (not run && takeExtension localfile == ".iso") $ do
           tz <- getCurrentTimeZone
-          putStrLn $ showdestdir </> localfile ++ " (size " ++ show localsize ++ " okay) " ++ maybe "" (show . utcToZonedTime tz) mprimeTime
+          -- FIXME abbreviate size
+          putStrLn $ unwords [showdestdir </> localfile, renderTime tz mprimeTime, "size " ++ show localsize ++ " okay"]
         return True
         else do
         when (isNothing mprimeSize) $
@@ -449,21 +452,30 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
           putStrLn $ "Local: " ++ showdestdir </> symlinktarget
         _ -> return ()
 
+renderTime :: TimeZone -> Maybe UTCTime -> String
+renderTime tz mprimeTime =
+  "(" ++ maybe "" (show . utcToZonedTime tz) mprimeTime ++ ")"
+
 downloadFile :: Bool -> Bool -> Manager -> URL -> Primary -> IO (Maybe Bool)
 downloadFile dryrun done mgr url prime = do
   putStrLn url
   if done
     then return (Just False)
     else do
-    when (url /= primaryUrl prime) $ do
-      (mirrorSize,mirrorTime) <- httpFileSizeTime mgr url
-      unless (mirrorSize == primarySize prime) $
-        putStrLn "Warning!  Mirror filesize differs from primary file"
-      unless (mirrorTime == primaryTime prime) $
-        putStrLn "Warning!  Mirror timestamp differs from primary file"
+    mtime <- do
+      if url /= primaryUrl prime
+        then do
+        (mirrorSize,mirrorTime) <- httpFileSizeTime mgr url
+        unless (mirrorSize == primarySize prime) $
+          putStrLn "Warning!  Mirror filesize differs from primary file"
+        unless (mirrorTime == primaryTime prime) $
+          putStrLn "Warning!  Mirror timestamp differs from primary file"
+        return mirrorTime
+        else return $ primaryTime prime
     if dryrun then return Nothing
       else do
-      putStrLn $ "downloading " ++ takeFileName url
+      tz <- getCurrentTimeZone
+      putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime]
       cmd_ "curl" ["-C", "-", "-O", url]
       return (Just True)
 
