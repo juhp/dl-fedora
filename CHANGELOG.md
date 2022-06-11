@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.3 (2022-06-11)
+- show timestamp of image
+
 ## 0.9.2 (2021-10-01)
 - fix test (beta) image selection to be the latest version
 

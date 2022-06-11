@@ -1,3 +1,5 @@
+- option to print local mirror
+- koji rawhide
 - support c9s devel and test composes
 - support c8s requires extracting mirror url
 
@@ -14,7 +16,7 @@
 - handle ELN dvd image
 - centos stream
 - iot
-- alt Labs
+* alt Labs
 
 - rename 'everything' to netinstall?
 - rawhide by version number?
@@ -27,3 +29,6 @@
 - catch: HandshakeFailed (Error_Protocol ("certificate has expired",True,CertificateExpired))
   - maybe in http-directory?
 - delete older snapshot images
+
+- remove old hanging symlinks
+- list/delete small partial downloads
