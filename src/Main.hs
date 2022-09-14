@@ -505,7 +505,7 @@ bootImage img showdir = do
   mQemu <- findExecutable "qemu-kvm"
   case mQemu of
     Just qemu -> do
-      let args = ["-m", "2048", "-rtc", "base=localtime"] ++ fileopts
+      let args = ["-m", "2048", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
       cmdN qemu (args ++ [showdir </> img])
       cmd_ qemu (args ++ [img])
     Nothing -> error' "Need qemu to run image"
