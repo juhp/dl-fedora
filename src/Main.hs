@@ -30,7 +30,7 @@ import qualified Options.Applicative.Help.Pretty as P
 import Paths_dl_fedora (version)
 
 import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
-                  removePrefix, warning)
+                  {-removePrefix,-} warning)
 import SimpleCmdArgs
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
@@ -101,11 +101,13 @@ odcsFpo = "https://odcs.fedoraproject.org/composes"
 c9sComposes = "https://composes.stream.centos.org"
 odcsStream = "https://odcs.stream.centos.org"
 
+data Mirror = DlFpo | KojiFpo | Mirror String | DefaultMirror
+
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "or koji"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -120,15 +122,17 @@ main = do
     <*> switchWith 'l' "local" "Show current local image via symlink"
     <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one"
-    <*> optional mirrorOpt
+    <*> mirrorOpt
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
     <*> strArg "RELEASE"
     <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
   where
-    mirrorOpt :: Parser String
+    mirrorOpt :: Parser Mirror
     mirrorOpt =
-      flagWith' dlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
-      strOptionWith 'm' "mirror" "HOST" ("Mirror url for /pub [default " ++ downloadFpo ++ "]")
+      flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
+      flagWith' KojiFpo 'k' "koji" "Use koji.fedoraproject.org" <|>
+      Mirror <$> strOptionWith 'm' "mirror" "URL" ("Mirror url for /pub [default " ++ downloadFpo ++ "]") <|>
+      pure DefaultMirror
 
     checkSumOpts :: Parser CheckSum
     checkSumOpts =
@@ -139,16 +143,17 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Maybe String -> String -> String -> FedoraEdition -> IO ()
-program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel edition = do
-  let mirror =
-        case mmirror of
-          Nothing | tgtrel == "koji" -> kojiPkgs
-          Nothing | tgtrel == "eln" -> odcsFpo
-          Nothing | tgtrel == "c9s" -> c9sComposes
-          Nothing -> downloadFpo
-          Just _ | tgtrel == "koji" -> error' "Cannot specify mirror for koji"
-          Just m -> m
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Mirror -> String -> String -> FedoraEdition -> IO ()
+program gpg checksum dryrun notimeout local run removeold mirror arch tgtrel edition = do
+  let mirrorUrl =
+        case mirror of
+          Mirror m -> m
+          KojiFpo -> kojiPkgs
+          DlFpo -> dlFpo
+          DefaultMirror
+            | tgtrel == "eln" -> odcsFpo
+            | tgtrel == "c9s" -> c9sComposes
+            | otherwise -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
@@ -163,7 +168,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       return $ filePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
       else do
       (fileurl, filenamePrefix, prime, _mchecksum, _done) <-
-        findURL mgr mirror showdestdir
+        findURL mgr mirrorUrl showdestdir
       tz <- getCurrentTimeZone
       putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
       putStrLn fileurl
@@ -172,7 +177,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       then bootImage symlink showdestdir
       else showSymlink symlink showdestdir
     else do
-    (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirror showdestdir
+    (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirrorUrl showdestdir
     let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
     downloadFile dryrun done mgr fileurl prime >>= fileChecksum mgr mchecksum showdestdir
     unless dryrun $ do
@@ -183,7 +188,7 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
     findURL :: Manager -> String -> String
             -- urlpath, fileprefix, primary, checksum, downloaded
             -> IO (URL, String, Primary, Maybe String, Bool)
-    findURL mgr mirror showdestdir = do
+    findURL mgr mirrorUrl showdestdir = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
       let primaryDir =
@@ -225,14 +230,16 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         where
           findMirror primeUrl path file = do
             url <-
-              if mirror `elem` [dlFpo,kojiPkgs,odcsFpo] then return primeUrl
-                else
-                if mirror /= downloadFpo then return $ mirror +/+ path +/+ file
+              if mirrorUrl `elem` [dlFpo,kojiPkgs,odcsFpo]
+              then return primeUrl
+              else
+                if mirrorUrl /= downloadFpo
+                then return $ mirrorUrl +/+ path +/+ file
                 else do
-                  redir <- httpRedirect mgr $ mirror +/+ path +/+ file
+                  redir <- httpRedirect mgr $ mirrorUrl +/+ path +/+ file
                   case redir of
                     Nothing -> do
-                      warning $ mirror +/+ path +/+ file <> " redirect failed"
+                      warning $ mirrorUrl +/+ path +/+ file <> " redirect failed"
                       return primeUrl
                     Just u -> do
                       let url = B.unpack u
@@ -301,7 +308,6 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
         "stage" -> stageRelease mgr subdir
         "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "Everything" +/+ arch +/+ "iso", Nothing)
         "c9s" -> return ("production/latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ arch +/+ "iso", Nothing)
-        "koji" -> kojiCompose mgr subdir
         rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
 
@@ -322,14 +328,14 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
       let mrel = listToMaybe rels
       return (path +/+ fromMaybe (error' ("staged release not found in " <> url)) mrel +/+ subdir, takeWhile (/= '_') <$> mrel)
 
-    kojiCompose :: Manager -> FilePath -> IO (FilePath, Maybe String)
-    kojiCompose mgr subdir = do
-      let path = "branched"
-          url = kojiPkgs +/+ path
-          prefix = "latest-Fedora-"
-      latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> httpDirectory mgr url
-      let mlatest = listToMaybe latest
-      return (path +/+ fromMaybe (error' ("koji branched latest dir not not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
+    -- kojiCompose :: Manager -> FilePath -> IO (FilePath, Maybe String)
+    -- kojiCompose mgr subdir = do
+    --   let path = "branched"
+    --       url = kojiPkgs +/+ path
+    --       prefix = "latest-Fedora-"
+    --   latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> httpDirectory mgr url
+    --   let mlatest = listToMaybe latest
+    --   return (path +/+ fromMaybe (error' ("koji branched latest dir not not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
 
     -- use https://admin.fedoraproject.org/pkgdb/api/collections ?
     released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)

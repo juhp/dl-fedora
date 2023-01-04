@@ -1,5 +1,5 @@
 - option to print local mirror
-- koji rawhide
+
 - support c9s devel and test composes
 - support c8s requires extracting mirror url
 
