@@ -30,7 +30,7 @@ import qualified Options.Applicative.Help.Pretty as P
 import Paths_dl_fedora (version)
 
 import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
-                  removePrefix)
+                  removePrefix, warning)
 import SimpleCmdArgs
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
@@ -231,7 +231,9 @@ program gpg checksum dryrun notimeout local run removeold mmirror arch tgtrel ed
                 else do
                   redir <- httpRedirect mgr $ mirror +/+ path +/+ file
                   case redir of
-                    Nothing -> error' $ mirror +/+ path +/+ file <> " redirect failed"
+                    Nothing -> do
+                      warning $ mirror +/+ path +/+ file <> " redirect failed"
+                      return primeUrl
                     Just u -> do
                       let url = B.unpack u
                       exists <- httpExists mgr url
