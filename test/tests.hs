@@ -7,20 +7,27 @@ dlFedora ghAction args =
   putStrLn "" >> cmdLog "dl-fedora"
   ((if ghAction then ("-T" :) else id) args)
 
+-- FIXME automate me
+branched :: Int
+branched = 38
+current, previous :: String
+current = show branched
+previous = show (branched - 1)
+
 tests :: Bool -> [[String]]
 tests ghAction =
-  [["-n", "35", "-c"]
+  [["-n", previous, "-c"]
   ,["-n", "rawhide", "silverblue"]
   ,["-n", "respin"]
-  ,["-l", "36"]
+  ,["-l", current]
   ,["-l", "rawhide", "-n"]
   ] ++
   if ghAction then []
   else
-    [["-n", "36", "silverblue"]
-    ,["-n", "34", "kde"]
-    ,["-T", "-n", "35", "everything"]
-    ,["-n", "35", "server", "--arch", "aarch64"]
+    [["-n", current, "silverblue"]
+    ,["-n", previous, "kde"]
+    ,["-T", "-n", current, "everything"]
+    ,["-n", previous, "server", "--arch", "aarch64"]
     ]
 
 main :: IO ()
