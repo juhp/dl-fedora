@@ -1,6 +1,6 @@
 cabal-version:       1.18
 name:                dl-fedora
-version:             0.9.3
+version:             0.9.4
 synopsis:            Fedora image download tool
 description:         Tool to download Fedora iso and image files
 -- can change to GPL-3.0-or-later with Cabal-2.2
@@ -10,14 +10,13 @@ homepage:            https://github.com/juhp/dl-fedora
 bug-reports:         https://github.com/juhp/dl-fedora/issues
 author:              Jens Petersen
 maintainer:          juhpetersen@gmail.com
-copyright:           2019-2022  Jens Petersen
+copyright:           2019-2023  Jens Petersen
 category:            Utility
 build-type:          Simple
 extra-doc-files:     README.md
                    , CHANGELOG.md
-tested-with:         GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.3
-                     GHC == 8.8.4, GHC == 8.6.5, GHC == 8.4.4, GHC == 8.2.2,
-                     GHC == 8.0.2, GHC == 7.10.3
+tested-with:         GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.7, GHC == 9.4.4
+                     GHC == 8.8.4, GHC == 8.6.5, GHC == 8.4.4, GHC == 8.2.2
 
 source-repository head
   type:     git

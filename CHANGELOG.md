@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.4 (2023-03-23)
+- add new F38 spins: Budgie and Sway
+- change koji target to --koji mirror option
+- if mirror redirect fails then fallback to primary
+- run with qemu -cpu host option
+
 ## 0.9.3 (2022-06-11)
 - show timestamp of image
 
