@@ -52,18 +52,20 @@ import DownloadDir
 data FedoraEdition = Cloud
                    | Container
                    | Everything
-                   | Kinoite
                    | Server
-                   | Silverblue
                    | Workstation
+                   | Silverblue
+                   | Kinoite
+                   | Budgie  -- first spin used below
                    | Cinnamon
+                   | I3
                    | KDE
                    | LXDE
                    | LXQt
                    | MATE
-                   | Soas
+                   | SoaS
+                   | Sway
                    | Xfce
-                   | I3
  deriving (Show, Enum, Bounded, Eq)
 
 showEdition :: FedoraEdition -> String
@@ -88,7 +90,7 @@ instance Read FedoraEdition where
 type URL = String
 
 fedoraSpins :: [FedoraEdition]
-fedoraSpins = [Cinnamon ..]
+fedoraSpins = [Budgie ..]
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
