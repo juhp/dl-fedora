@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.9.5 (2023-04-13)
+- add F38 Sericea sway ostree image
+
 ## 0.9.4 (2023-03-23)
 - add new F38 spins: Budgie and Sway
 - change koji target to --koji mirror option
