@@ -56,6 +56,7 @@ data FedoraEdition = Cloud
                    | Workstation
                    | Silverblue
                    | Kinoite
+                   | Sericea
                    | Budgie  -- first spin used below
                    | Cinnamon
                    | I3
@@ -492,6 +493,7 @@ downloadFile dryrun done mgr url prime = do
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
 editionType Kinoite = "ostree"
+editionType Sericea = "ostree"
 editionType Silverblue = "ostree"
 editionType Everything = "netinst"
 editionType Cloud = "Base"
