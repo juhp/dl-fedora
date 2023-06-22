@@ -25,7 +25,6 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Directory
 
 import Options.Applicative (fullDesc, header, progDescDoc)
-import qualified Options.Applicative.Help.Pretty as P
 
 import Paths_dl_fedora (version)
 
@@ -46,6 +45,7 @@ import Text.Read
 import qualified Text.ParserCombinators.ReadP as R
 import qualified Text.ParserCombinators.ReadPrec as RP
 import Text.Regex.Posix
+import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import DownloadDir
 
