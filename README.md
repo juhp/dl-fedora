@@ -39,7 +39,7 @@ It also tries to check the iso checksum and its gpg signature.
 ## Usage
 ```shellsession
 $ dl-fedora --version
-0.9.4
+0.9.5.1
 $ dl-fedora --help
 Fedora iso downloader
 
@@ -48,10 +48,11 @@ Usage: dl-fedora [--version] [-g|--gpg-keys]
                  [-T|--no-http-timeout] [-l|--local] [-r|--run] [-R|--replace]
                  [(-d|--dl) | (-k|--koji) | (-m|--mirror URL)] [-a|--arch ARCH]
                  RELEASE [EDITION]
+
   Tool for downloading Fedora iso file images.
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s
   EDITION = {cloud,container,everything,server,workstation,silverblue,kinoite,
-             budgie,cinnamon,i3,kde,lxde,lxqt,mate,soas,sway,
+             sericea,budgie,cinnamon,i3,kde,lxde,lxqt,mate,soas,sway,
              xfce} [default: workstation]
 
   See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>
