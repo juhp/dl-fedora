@@ -121,6 +121,7 @@ main = do
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> checkSumOpts
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
+    <*> switchLongWith "debug" "Debug output"
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
     <*> switchWith 'l' "local" "Show current local image via symlink"
     <*> switchWith 'r' "run" "Boot image in Qemu"
@@ -146,8 +147,9 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Mirror -> String -> String -> FedoraEdition -> IO ()
-program gpg checksum dryrun notimeout local run removeold mirror arch tgtrel edition = do
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool
+        -> Mirror -> String -> String -> FedoraEdition -> IO ()
+program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtrel edition = do
   let mirrorUrl =
         case mirror of
           Mirror m -> m
@@ -158,6 +160,7 @@ program gpg checksum dryrun notimeout local run removeold mirror arch tgtrel edi
             | tgtrel == "c9s" -> c9sComposes
             | otherwise -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
+  when debug $ putStrLn showdestdir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
@@ -182,7 +185,7 @@ program gpg checksum dryrun notimeout local run removeold mirror arch tgtrel edi
     else do
     (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirrorUrl showdestdir
     let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
-    downloadFile dryrun done mgr fileurl prime >>= fileChecksum mgr mchecksum showdestdir
+    downloadFile dryrun debug done mgr fileurl prime >>= fileChecksum mgr mchecksum showdestdir
     unless dryrun $ do
       let localfile = takeFileName fileurl
       updateSymlink localfile symlink showdestdir
@@ -467,8 +470,9 @@ renderTime :: TimeZone -> Maybe UTCTime -> String
 renderTime tz mprimeTime =
   "(" ++ maybe "" (show . utcToZonedTime tz) mprimeTime ++ ")"
 
-downloadFile :: Bool -> Bool -> Manager -> URL -> Primary -> IO (Maybe Bool)
-downloadFile dryrun done mgr url prime = do
+downloadFile :: Bool -> Bool -> Bool -> Manager -> URL -> Primary
+             -> IO (Maybe Bool)
+downloadFile dryrun debug done mgr url prime = do
   putStrLn url
   if done
     then return (Just False)
@@ -483,11 +487,14 @@ downloadFile dryrun done mgr url prime = do
           putStrLn "Warning!  Mirror timestamp differs from primary file"
         return mirrorTime
         else return $ primaryTime prime
-    if dryrun then return Nothing
+    if dryrun
+      then return Nothing
       else do
       tz <- getCurrentTimeZone
       putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime]
-      cmd_ "curl" ["-C", "-", "-O", url]
+      let args = ["-C", "-", "-O", url]
+      when debug $ putStrLn $ unwords $ "curl" : args
+      cmd_ "curl" args
       return (Just True)
 
 editionType :: FedoraEdition -> String
