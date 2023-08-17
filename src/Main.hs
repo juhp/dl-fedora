@@ -185,7 +185,8 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
     else do
     (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirrorUrl showdestdir
     let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
-    downloadFile dryrun debug done mgr fileurl prime >>= fileChecksum mgr mchecksum showdestdir
+    downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
+      fileChecksum mgr mchecksum showdestdir
     unless dryrun $ do
       let localfile = takeFileName fileurl
       updateSymlink localfile symlink showdestdir
@@ -470,9 +471,9 @@ renderTime :: TimeZone -> Maybe UTCTime -> String
 renderTime tz mprimeTime =
   "(" ++ maybe "" (show . utcToZonedTime tz) mprimeTime ++ ")"
 
-downloadFile :: Bool -> Bool -> Bool -> Manager -> URL -> Primary
+downloadFile :: Bool -> Bool -> Bool -> Manager -> URL -> Primary -> String
              -> IO (Maybe Bool)
-downloadFile dryrun debug done mgr url prime = do
+downloadFile dryrun debug done mgr url prime showdestdir = do
   putStrLn url
   if done
     then return (Just False)
@@ -491,9 +492,9 @@ downloadFile dryrun debug done mgr url prime = do
       then return Nothing
       else do
       tz <- getCurrentTimeZone
-      putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime]
+      putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime, "to", showdestdir]
       let args = ["-C", "-", "-O", url]
-      when debug $ putStrLn $ unwords $ "curl" : args
+      when debug $ putStrLn $ unwords $ "curl" : "--output-dir" : showdestdir : args
       cmd_ "curl" args
       return (Just True)
 
