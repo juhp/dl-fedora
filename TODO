@@ -1,7 +1,7 @@
 - option to print local mirror
 
-- support c9s devel and test composes
-- support c8s requires extracting mirror url
+- print download.fp.o url
+- option to print local mirror
 
 - --list all latest images
 
@@ -13,7 +13,6 @@
 - qemu user options: eg -smp 2
 - restore selinux properties after running
 - handle ELN dvd image
-- centos stream
 - iot
 * alt Labs
 

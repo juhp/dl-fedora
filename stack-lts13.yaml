@@ -4,4 +4,4 @@ extra-deps:
 - simple-cmd-0.2.0.1
 - xdg-userdirs-0.1.0.2
 - http-directory-0.1.10
-- simple-cmd-args-0.1.2
+- simple-cmd-args-0.1.8

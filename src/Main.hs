@@ -96,22 +96,30 @@ fedoraSpins = [Budgie ..]
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
 
-dlFpo, downloadFpo, kojiPkgs, odcsFpo, c9sComposes, odcsStream :: String
+dlFpo, downloadFpo, kojiPkgs, odcsFpo, csComposes, odcsStream :: String
 dlFpo = "https://dl.fedoraproject.org/pub"
 downloadFpo = "https://download.fedoraproject.org/pub"
 kojiPkgs = "https://kojipkgs.fedoraproject.org/compose"
 odcsFpo = "https://odcs.fedoraproject.org/composes"
-c9sComposes = "https://composes.stream.centos.org"
+csComposes = "https://composes.stream.centos.org"
 odcsStream = "https://odcs.stream.centos.org"
 
 data Mirror = DlFpo | UseMirror | KojiFpo | Mirror String | DefaultLatest
   deriving Eq
 
+data CentosChannel = CSProduction | CSTest | CSDevelopment
+  deriving Eq
+
+showChannel :: CentosChannel -> String
+showChannel CSProduction = "production"
+showChannel CSTest = "test"
+showChannel CSDevelopment = "development"
+
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c8s", "c9s"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
@@ -128,6 +136,8 @@ main = do
     <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one"
     <*> mirrorOpt
+    <*> (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
+         flagLongWith CSProduction CSTest "cs-test" "Use centos-stream test compose (default is production)")
     <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
     <*> strArg "RELEASE"
     <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
@@ -150,8 +160,9 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool
-        -> Mirror -> String -> String -> FedoraEdition -> IO ()
-program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtrel edition = do
+        -> Mirror -> CentosChannel -> String -> String -> FedoraEdition
+        -> IO ()
+program gpg checksum dryrun debug notimeout local run removeold mirror channel arch tgtrel edition = do
   let mirrorUrl =
         case mirror of
           Mirror m -> m
@@ -159,7 +170,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
           DlFpo -> dlFpo
           _ -- UseMirror or DefaultLatest
             | tgtrel == "eln" -> odcsFpo
-            | tgtrel == "c9s" -> c9sComposes
+            | tgtrel `elem` ["c8s","c9s"] -> csComposes
             | otherwise -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
   when debug $ putStrLn showdestdir
@@ -204,6 +215,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
             case tgtrel of
               "koji" -> kojiPkgs
               "eln" -> odcsFpo
+              "c8s" -> odcsStream
               "c9s" -> odcsStream
               _ -> if mirror == DefaultLatest
                    then dlFpo
@@ -282,6 +294,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
         "rawhide" -> Just "Rawhide"
         "respin" -> Nothing
         "eln" -> Nothing
+        "c8s" -> Nothing
         "c9s" -> Nothing
         rel | all isDigit rel -> Just rel
         _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
@@ -318,8 +331,9 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
         "rawhide" -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
         "test" -> testRelease mgr subdir
         "stage" -> stageRelease mgr subdir
-        "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "Everything" +/+ arch +/+ "iso", Nothing)
-        "c9s" -> return ("production/latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ arch +/+ "iso", Nothing)
+        "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+        "c8s" -> return ("stream-8" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+        "c9s" -> return (showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
         rel | all isDigit rel -> released mgr rel subdir
         _ -> error' "Unknown release"
 
@@ -367,7 +381,8 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
     makeFilePrefix mrelease =
       case tgtrel of
         "respin" -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
-        "eln" -> "Fedora-ELN-Rawhide"
+        "eln" -> "Fedora-ELN"
+        "c8s" -> "CentOS-Stream-8"
         "c9s" -> "CentOS-Stream-9"
         _ ->
           let showRel r = if last r == '/' then init r else r
