@@ -28,8 +28,8 @@ import Options.Applicative (fullDesc, header, progDescDoc)
 
 import Paths_dl_fedora (version)
 
-import SimpleCmd (cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
-                  {-removePrefix,-} warning)
+import SimpleCmd (cmd, cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
+                  {-removePrefix,-} warning, (+-+))
 import SimpleCmdArgs
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
@@ -125,6 +125,7 @@ main = do
                P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
                P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
              ]
+  sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
@@ -138,7 +139,7 @@ main = do
     <*> mirrorOpt
     <*> (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
          flagLongWith CSProduction CSTest "cs-test" "Use centos-stream test compose (default is production)")
-    <*> strOptionalWith 'a' "arch" "ARCH" "Architecture [default: x86_64]" "x86_64"
+    <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
     <*> strArg "RELEASE"
     <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
   where
@@ -160,7 +161,7 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool
-        -> Mirror -> CentosChannel -> String -> String -> FedoraEdition
+        -> Mirror -> CentosChannel -> Arch -> String -> FedoraEdition
         -> IO ()
 program gpg checksum dryrun debug notimeout local run removeold mirror channel arch tgtrel edition = do
   let mirrorUrl =
@@ -184,20 +185,20 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
       then do
       filePrefix <- getFilePrefix showdestdir
       -- FIXME support non-iso
-      return $ filePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> "iso"
+      return $ filePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> "iso"
       else do
       (fileurl, filenamePrefix, prime, _mchecksum, _done) <-
         findURL mgr mirrorUrl showdestdir
       tz <- getCurrentTimeZone
       putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
       putStrLn fileurl
-      return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
+      return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
     if run
       then bootImage symlink showdestdir
       else showSymlink symlink showdestdir
     else do
     (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirrorUrl showdestdir
-    let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> arch else "") <> "-latest" <.> takeExtension fileurl
+    let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
     downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
       fileChecksum mgr mchecksum showdestdir
     unless dryrun $ do
@@ -231,7 +232,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
           error' $ "no match for " <> prefixPat <> " in " <> primaryDir
         Just file -> do
           let prefix = if '*' `elem` prefixPat
-                       then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
+                       then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
                        else prefixPat
               primeUrl = primaryDir +/+ file
           (primeSize,primeTime) <- httpFileSizeTime mgr primeUrl
@@ -284,7 +285,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
           else prefixPat
         Just file -> do
           let prefix = if '*' `elem` prefixPat
-                       then (file =~ prefixPat) ++ if arch `isInfixOf` prefixPat then "" else arch
+                       then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
                        else prefixPat
           return prefix
 
@@ -324,8 +325,8 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
     urlPathMRel mgr = do
       let subdir =
             if edition `elem` fedoraSpins
-            then joinPath ["Spins", arch, "iso"]
-            else joinPath [showEdition edition, arch, editionMedia edition]
+            then joinPath ["Spins", showArch arch, "iso"]
+            else joinPath [showEdition edition, showArch arch, editionMedia edition]
       case tgtrel of
         "respin" -> return ("alt/live-respins", Nothing)
         "rawhide" -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
@@ -389,8 +390,8 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
               rel = maybeToList (showRel <$> mrelease)
               middle =
                 if edition `elem` [Cloud, Container]
-                then rel ++ [".*" <> arch]
-                else arch : rel
+                then rel ++ [".*" <> showArch arch]
+                else showArch arch : rel
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition] ++ middle)
 
@@ -564,3 +565,32 @@ s +/+ t | last s == '/' = init s +/+ t
         | head t == '/' = s +/+ tail t
 s +/+ t = s ++ "/" ++ t
 #endif
+
+-- derived from fedora-repoquery Types
+data Arch = Source
+          | X86_64
+          | AARCH64
+          | S390X
+          | PPC64LE
+  deriving Eq
+
+eitherArch :: String -> Either String Arch
+eitherArch s =
+  case lower s of
+    "source" -> Right Source
+    "x86_64" -> Right X86_64
+    "aarch64" -> Right AARCH64
+    "s390x" -> Right S390X
+    "ppc64le" -> Right PPC64LE
+    _ -> Left $ "unknown arch: " ++ s
+
+readArch :: String -> Arch
+readArch =
+  either error' id . eitherArch
+
+showArch :: Arch -> String
+showArch Source = "source"
+showArch X86_64 = "x86_64"
+showArch AARCH64 = "aarch64"
+showArch S390X = "s390x"
+showArch PPC64LE = "ppc64le"
