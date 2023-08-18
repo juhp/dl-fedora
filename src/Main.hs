@@ -104,7 +104,8 @@ odcsFpo = "https://odcs.fedoraproject.org/composes"
 c9sComposes = "https://composes.stream.centos.org"
 odcsStream = "https://odcs.stream.centos.org"
 
-data Mirror = DlFpo | KojiFpo | Mirror String | DefaultMirror
+data Mirror = DlFpo | UseMirror | KojiFpo | Mirror String | DefaultLatest
+  deriving Eq
 
 main :: IO ()
 main = do
@@ -133,10 +134,11 @@ main = do
   where
     mirrorOpt :: Parser Mirror
     mirrorOpt =
-      flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org" <|>
+      flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org (dl.fp.o)" <|>
+      flagWith' UseMirror 'D' "no-dl" "Do not use dl.fp.o (even if newer)" <|>
       flagWith' KojiFpo 'k' "koji" "Use koji.fedoraproject.org" <|>
       Mirror <$> strOptionWith 'm' "mirror" "URL" ("Mirror url for /pub [default " ++ downloadFpo ++ "]") <|>
-      pure DefaultMirror
+      pure DefaultLatest
 
     checkSumOpts :: Parser CheckSum
     checkSumOpts =
@@ -155,7 +157,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
           Mirror m -> m
           KojiFpo -> kojiPkgs
           DlFpo -> dlFpo
-          DefaultMirror
+          _ -- UseMirror or DefaultLatest
             | tgtrel == "eln" -> odcsFpo
             | tgtrel == "c9s" -> c9sComposes
             | otherwise -> downloadFpo
@@ -199,11 +201,14 @@ program gpg checksum dryrun debug notimeout local run removeold mirror arch tgtr
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
       let primaryDir =
-            (case tgtrel of
-               "koji" -> kojiPkgs
-               "eln" -> odcsFpo
-               "c9s" -> odcsStream
-               _ -> dlFpo) +/+ path <> "/"
+            case tgtrel of
+              "koji" -> kojiPkgs
+              "eln" -> odcsFpo
+              "c9s" -> odcsStream
+              _ -> if mirror == DefaultLatest
+                   then dlFpo
+                   else downloadFpo
+            +/+ path <> "/"
       hrefs <- httpDirectory mgr primaryDir
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)

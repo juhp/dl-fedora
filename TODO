@@ -9,7 +9,6 @@
 - download to a .hidden file and then rename
 - coreos Live
 - Release type
-- --ignore-dl
 - check for curl
 - qemu user options: eg -smp 2
 - restore selinux properties after running
