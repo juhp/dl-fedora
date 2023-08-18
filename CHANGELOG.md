@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.6 (2023-08-18)
+- --no-dl option to avoid dl.fp.o even if newer
+- support c8s and add options for centos-stream channels
+- update eln path
+- downloadFile: add showdestdir to downloading message and curl debug
+- add --debug option
+
 ## 0.9.5 (2023-04-13)
 - add F38 Sericea sway ostree image
 

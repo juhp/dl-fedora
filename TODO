@@ -1,4 +1,4 @@
-- option to print local mirror
+- show COMPOSE INFO
 
 - print download.fp.o url
 - option to print local mirror
@@ -12,7 +12,7 @@
 - check for curl
 - qemu user options: eg -smp 2
 - restore selinux properties after running
-- handle ELN dvd image
+- handle dvd images
 - iot
 * alt Labs
 
@@ -30,3 +30,5 @@
 
 - remove old hanging symlinks
 - list/delete small partial downloads
+
+- --no-symlink option

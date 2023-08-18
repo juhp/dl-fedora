@@ -9,7 +9,7 @@ dlFedora ghAction args =
 
 -- FIXME automate me
 branched :: Int
-branched = 38
+branched = 39
 current, previous :: String
 current = show branched
 previous = show (branched - 1)
@@ -28,6 +28,9 @@ tests ghAction =
     ,["-n", previous, "kde"]
     ,["-T", "-n", current, "everything"]
     ,["-n", previous, "server", "--arch", "aarch64"]
+    ,["-n", "c8s"]
+    ,["-n", "c9s"]
+    ,["-n", "eln"]
     ]
 
 main :: IO ()
