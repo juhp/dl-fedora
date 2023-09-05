@@ -29,8 +29,9 @@ import Options.Applicative (fullDesc, header, progDescDoc)
 import Paths_dl_fedora (version)
 
 import SimpleCmd (cmd, cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
-                  {-removePrefix,-} warning, (+-+))
+                  sudoLog, warning, (+-+))
 import SimpleCmdArgs
+import SimplePrompt (yesNo)
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
                          findExecutable, getPermissions,
@@ -40,6 +41,7 @@ import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
                         (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
+import System.Posix.User (getLoginName)
 
 import Text.Read
 import qualified Text.ParserCombinators.ReadP as R
@@ -246,8 +248,15 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
               if done
                 then return (primeUrl,True)
                 else do
-                unlessM (writable <$> getPermissions localfile) $
-                  error' $ localfile <> " does have write permission, aborting!"
+                unlessM (writable <$> getPermissions localfile) $ do
+                  putStrLn $ localfile <> " does not have write permission!"
+                  yes <- yesNo "Fix ownership"
+                  if yes
+                    then do
+                    user <- getLoginName
+                    sudoLog "chown" [user,localfile]
+                    else
+                    error' $ localfile <> " does have write permission, aborting!"
                 findMirror primeUrl path file
               else findMirror primeUrl path file
           let finalDir = dropFileName finalurl

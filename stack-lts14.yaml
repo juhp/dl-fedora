@@ -2,3 +2,5 @@ resolver: lts-14.27
 extra-deps:
   - http-directory-0.1.10
   - simple-cmd-args-0.1.8
+  - simple-prompt-0.2.1
+  - simple-cmd-0.2.7
