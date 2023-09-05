@@ -149,10 +149,10 @@ main = do
     mirrorOpt :: Parser Mirror
     mirrorOpt =
       flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org (dl.fp.o)" <|>
-      flagWith' UseMirror 'D' "no-dl" "Do not use dl.fp.o (even if newer)" <|>
+      flagWith' DefaultLatest 'L' "latest" "Get latest image either from mirror or dl.fp.o if newer" <|>
       flagWith' KojiFpo 'k' "koji" "Use koji.fedoraproject.org" <|>
       Mirror <$> strOptionWith 'm' "mirror" "URL" ("Mirror url for /pub [default " ++ downloadFpo ++ "]") <|>
-      pure DefaultLatest
+      pure UseMirror
 
     checkSumOpts :: Parser CheckSum
     checkSumOpts =
@@ -221,7 +221,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
               "eln" -> odcsFpo
               "c8s" -> odcsStream
               "c9s" -> odcsStream
-              _ -> if mirror == DefaultLatest
+              _ -> if mirror `elem` [DefaultLatest, DlFpo]
                    then dlFpo
                    else downloadFpo
             +/+ path <> "/"
