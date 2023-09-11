@@ -32,3 +32,5 @@
 - list/delete small partial downloads
 
 - --no-symlink option
+
+- use http-download

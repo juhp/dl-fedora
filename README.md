@@ -29,8 +29,11 @@ By default dl-fedora downloads to `~/Downloads/`
 but if you create an `iso` subdirectory there (`~/Downloads/iso/`)
 it will use that directory instead.
 
-`dl-fedora` downloads the latest image redirected from `download.fedoraproject.org` by default, after checking for the latest image at `dl.fedoraproject.org`.
-However if the mirror is not synced yet it will download from `dl.fedoraproject.org` instead. You can use `--no-dl` to avoid checking and downloading from the main dl.fedoraproject.org mirror (in this case a nightly image might not be the very latest).
+`dl-fedora` downloads the latest mirrored image redirected from
+`download.fedoraproject.org` by default.
+If you want to ensure getting the very latest image you can use `--latest`,
+which will then download from `dl.fedoraproject.org` instead
+_if_ your mirror is not synced yet. (This behavior changed with 0.10.)
 
 If the image is already found to be downloaded
 it will not be re-downloaded of course.
@@ -44,14 +47,14 @@ It also tries to check the iso checksum and its gpg signature.
 ## Usage
 ```shellsession
 $ dl-fedora --version
-0.9.6
+0.10
 $ dl-fedora --help
 Fedora iso downloader
 
 Usage: dl-fedora [--version] [-g|--gpg-keys]
                  [(-C|--no-checksum) | (-c|--checksum)] [-n|--dry-run] [--debug]
                  [-T|--no-http-timeout] [-l|--local] [-r|--run] [-R|--replace]
-                 [(-d|--dl) | (-D|--no-dl) | (-k|--koji) | (-m|--mirror URL)]
+                 [(-d|--dl) | (-L|--latest) | (-k|--koji) | (-m|--mirror URL)]
                  [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE [EDITION]
 
   Tool for downloading Fedora iso file images.
@@ -77,7 +80,8 @@ Available options:
   -R,--replace             Delete previous snapshot image after downloading
                            latest one
   -d,--dl                  Use dl.fedoraproject.org (dl.fp.o)
-  -D,--no-dl               Do not use dl.fp.o (even if newer)
+  -L,--latest              Get latest image either from mirror or dl.fp.o if
+                           newer
   -k,--koji                Use koji.fedoraproject.org
   -m,--mirror URL          Mirror url for /pub [default
                            https://download.fedoraproject.org/pub]

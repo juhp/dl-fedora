@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10 (2023-09-05)
+- default to download.fp.o: replace --no-dl with --latest
+- allow "sb" as alias for Silverblue
+- offer to fix permissions of a partially downloaded run iso file
+
 ## 0.9.6 (2023-08-18)
 - --no-dl option to avoid dl.fp.o even if newer
 - support c8s and add options for centos-stream channels
