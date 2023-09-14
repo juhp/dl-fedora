@@ -59,9 +59,9 @@ Usage: dl-fedora [--version] [-g|--gpg-keys]
 
   Tool for downloading Fedora iso file images.
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c8s, c9s
-  EDITION = {cloud,container,everything,server,workstation,silverblue,kinoite,
-             sericea,budgie,cinnamon,i3,kde,lxde,lxqt,mate,soas,sway,
-             xfce} [default: workstation]
+  EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,i3,
+             kde,lxde,lxqt,mate,soas,sway,xfce,silverblue,kinoite,onyx,
+             sericea} [default: workstation]
 
   See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>
   and also <https://fedoramagazine.org/verify-fedora-iso-file>.

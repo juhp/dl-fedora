@@ -68,6 +68,7 @@ data FedoraEdition = Cloud
                    | Xfce  -- last spin: used below
                    | Silverblue
                    | Kinoite
+                   | Onyx
                    | Sericea
  deriving (Show, Enum, Bounded, Eq)
 
@@ -532,6 +533,7 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
 editionType Kinoite = "ostree"
+editionType Onyx = "ostree"
 editionType Sericea = "ostree"
 editionType Silverblue = "ostree"
 editionType Everything = "netinst"
