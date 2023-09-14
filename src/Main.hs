@@ -56,10 +56,7 @@ data FedoraEdition = Cloud
                    | Everything
                    | Server
                    | Workstation
-                   | Silverblue
-                   | Kinoite
-                   | Sericea
-                   | Budgie  -- first spin used below
+                   | Budgie  -- first spin: used below
                    | Cinnamon
                    | I3
                    | KDE
@@ -68,7 +65,10 @@ data FedoraEdition = Cloud
                    | MATE
                    | SoaS
                    | Sway
-                   | Xfce
+                   | Xfce  -- last spin: used below
+                   | Silverblue
+                   | Kinoite
+                   | Sericea
  deriving (Show, Enum, Bounded, Eq)
 
 showEdition :: FedoraEdition -> String
@@ -94,7 +94,7 @@ instance Read FedoraEdition where
 type URL = String
 
 fedoraSpins :: [FedoraEdition]
-fedoraSpins = [Budgie ..]
+fedoraSpins = [Budgie .. Xfce]
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
