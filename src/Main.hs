@@ -157,8 +157,8 @@ main = do
 
     checkSumOpts :: Parser CheckSum
     checkSumOpts =
-      flagWith' NoCheckSum 'C' "no-checksum" "Do not check checksum" <|>
-      flagWith AutoCheckSum CheckSum 'c' "checksum" "Do checksum even if already downloaded"
+      flagLongWith' NoCheckSum "no-checksum" "Do not check checksum" <|>
+      flagLongWith AutoCheckSum CheckSum "checksum" "Do checksum even if already downloaded"
 
 data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
