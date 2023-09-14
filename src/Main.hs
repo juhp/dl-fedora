@@ -216,12 +216,11 @@ program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel e
         putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
         putStrLn fileurl
         return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
-      if run
+      mtarget <- derefSymlink symlink
+      whenJust mtarget $ \target ->
+        if run
         then bootImage symlink showdestdir
-        else do
-        mtarget <- derefSymlink symlink
-        whenJust mtarget $ \target ->
-          putStrLn $ "Local: " ++ showdestdir </> target
+        else putStrLn $ "Local: " ++ showdestdir </> target
     ModeDownload dryrun run -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <-
         findURL mgr mirrorUrl showdestdir False
