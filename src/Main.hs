@@ -149,8 +149,8 @@ main = do
   where
     mirrorOpt :: Parser Mirror
     mirrorOpt =
-      flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org (dl.fp.o)" <|>
       flagWith' DefaultLatest 'L' "latest" "Get latest image either from mirror or dl.fp.o if newer" <|>
+      flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org (dl.fp.o)" <|>
       flagWith' KojiFpo 'k' "koji" "Use koji.fedoraproject.org" <|>
       Mirror <$> strOptionWith 'm' "mirror" "URL" ("Mirror url for /pub [default " ++ downloadFpo ++ "]") <|>
       pure UseMirror

@@ -54,7 +54,7 @@ Fedora iso downloader
 Usage: dl-fedora [--version] [-g|--gpg-keys]
                  [(-C|--no-checksum) | (-c|--checksum)] [-n|--dry-run] [--debug]
                  [-T|--no-http-timeout] [-l|--local] [-r|--run] [-R|--replace]
-                 [(-d|--dl) | (-L|--latest) | (-k|--koji) | (-m|--mirror URL)]
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
                  [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE [EDITION]
 
   Tool for downloading Fedora iso file images.
@@ -79,9 +79,9 @@ Available options:
   -r,--run                 Boot image in Qemu
   -R,--replace             Delete previous snapshot image after downloading
                            latest one
-  -d,--dl                  Use dl.fedoraproject.org (dl.fp.o)
   -L,--latest              Get latest image either from mirror or dl.fp.o if
                            newer
+  -d,--dl                  Use dl.fedoraproject.org (dl.fp.o)
   -k,--koji                Use koji.fedoraproject.org
   -m,--mirror URL          Mirror url for /pub [default
                            https://download.fedoraproject.org/pub]
