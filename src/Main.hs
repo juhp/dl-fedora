@@ -50,6 +50,7 @@ import Text.Regex.Posix
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import DownloadDir
+import Types
 
 data FedoraEdition = Cloud
                    | Container
@@ -119,8 +120,6 @@ showChannel CSProduction = "production"
 showChannel CSTest = "test"
 showChannel CSDevelopment = "development"
 
-data Mode = ModeDownload | ModeCheck | ModeLocal
-
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
@@ -136,12 +135,10 @@ main = do
     program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> checkSumOpts
-    <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchLongWith "debug" "Debug output"
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
     <*> (flagWith' ModeCheck 'c' "check" "check if newer image available" <|>
-         flagWith ModeDownload ModeLocal 'l' "local" "Show current local image via symlink")
-    <*> switchWith 'r' "run" "Boot image in Qemu"
+         flagWith ModeDownload ModeLocal 'l' "local" "Show current local image via symlink" <*> switchWith 'n' "dry-run" "Don't actually download anything" <*> switchWith 'r' "run" "Boot image in Qemu")
     <*> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one"
     <*> mirrorOpt
     <*> (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
@@ -167,10 +164,10 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Mode -> Bool -> Bool
+program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool
         -> Mirror -> CentosChannel -> Arch -> String -> FedoraEdition
         -> IO ()
-program gpg checksum dryrun debug notimeout mode run removeold mirror channel arch tgtrel edition = do
+program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel edition = do
   let mirrorUrl =
         case mirror of
           Mirror m -> m
@@ -180,7 +177,7 @@ program gpg checksum dryrun debug notimeout mode run removeold mirror channel ar
             | tgtrel == "eln" -> odcsFpo
             | tgtrel `elem` ["c8s","c9s"] -> csComposes
             | otherwise -> downloadFpo
-  showdestdir <- setDownloadDir dryrun "iso"
+  showdestdir <- setDownloadDir mode "iso"
   when debug $ putStrLn showdestdir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
@@ -205,7 +202,7 @@ program gpg checksum dryrun debug notimeout mode run removeold mirror channel ar
               putStrLn $ "Local:" +-+ target
               putStrLn $ "Newer:" +-+ takeFileName fileurl
           Nothing -> putStrLn $ "Available:" +-+ takeFileName fileurl
-    ModeLocal -> do
+    ModeLocal dryrun run -> do
       symlink <-
         if dryrun
         then do
@@ -225,7 +222,7 @@ program gpg checksum dryrun debug notimeout mode run removeold mirror channel ar
         mtarget <- derefSymlink symlink
         whenJust mtarget $ \target ->
           putStrLn $ "Local: " ++ showdestdir </> target
-    ModeDownload -> do
+    ModeDownload dryrun run -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <-
         findURL mgr mirrorUrl showdestdir False
       let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
@@ -343,7 +340,7 @@ program gpg checksum dryrun debug notimeout mode run removeold mirror channel ar
       localsize <- toInteger . fileSize <$> getFileStatus localfile
       if Just localsize == mprimeSize
         then do
-        when (not quiet && not run) $ do
+        unless quiet $ do
           tz <- getCurrentTimeZone
           -- FIXME abbreviate size?
           putStrLn $ unwords [showdestdir </> localfile, renderTime tz mprimeTime, "size " ++ show localsize ++ " okay"]

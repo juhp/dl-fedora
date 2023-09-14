@@ -57,9 +57,10 @@ $ dl-fedora --version
 $ dl-fedora --help
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys]
-                 [(-C|--no-checksum) | (-c|--checksum)] [-n|--dry-run] [--debug]
-                 [-T|--no-http-timeout] [-l|--local] [-r|--run] [-R|--replace]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
+                 [--debug] [-T|--no-http-timeout]
+                 [(-c|--check) | [-l|--local] [-n|--dry-run] [-r|--run]]
+                 [-R|--replace]
                  [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
                  [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE [EDITION]
 
@@ -76,12 +77,13 @@ Available options:
   -h,--help                Show this help text
   --version                Show version
   -g,--gpg-keys            Import Fedora GPG keys for verifying checksum file
-  -C,--no-checksum         Do not check checksum
-  -c,--checksum            Do checksum even if already downloaded
-  -n,--dry-run             Don't actually download anything
+  --no-checksum            Do not check checksum
+  --checksum               Do checksum even if already downloaded
   --debug                  Debug output
   -T,--no-http-timeout     Do not timeout for http response
+  -c,--check               check if newer image available
   -l,--local               Show current local image via symlink
+  -n,--dry-run             Don't actually download anything
   -r,--run                 Boot image in Qemu
   -R,--replace             Delete previous snapshot image after downloading
                            latest one

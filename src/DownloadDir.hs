@@ -10,11 +10,18 @@ import System.Directory (createDirectoryIfMissing,
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath
 
-setDownloadDir :: Bool -> String -> IO FilePath
-setDownloadDir dryrun subdir = do
+import Types
+
+setDownloadDir :: Mode -> String -> IO FilePath
+setDownloadDir mode subdir = do
   home <- getHomeDirectory
   dlDir <- getUserDir "DOWNLOAD"
   dirExists <- doesDirectoryExist dlDir
+  let dryrun =
+        case mode of
+          ModeCheck -> True
+          ModeLocal _ _ -> True
+          ModeDownload dr _ -> dr
   -- is this really necessary?
   unless (dryrun || dirExists) $
     when (home == dlDir) $
