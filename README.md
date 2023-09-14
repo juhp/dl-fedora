@@ -20,6 +20,9 @@ Usage examples:
 
 `dl-fedora --run 39` : will download Fedora Workstation and boot the Live image with qemu-kvm.
 
+`dl-fedora --check 39 respin` : checks if there is a newer 39 respin iso image
+available.
+
 `dl-fedora --local rawhide` : shows the current locally available image
 (as well as the latest one available, unless `--dry-run` is given).
 This can be combined with `--run` to quickly run the latest local image,

@@ -119,6 +119,8 @@ showChannel CSProduction = "production"
 showChannel CSTest = "test"
 showChannel CSDevelopment = "development"
 
+data Mode = ModeDownload | ModeCheck | ModeLocal
+
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
@@ -137,7 +139,8 @@ main = do
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchLongWith "debug" "Debug output"
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
-    <*> switchWith 'l' "local" "Show current local image via symlink"
+    <*> (flagWith' ModeCheck 'c' "check" "check if newer image available" <|>
+         flagWith ModeDownload ModeLocal 'l' "local" "Show current local image via symlink")
     <*> switchWith 'r' "run" "Boot image in Qemu"
     <*> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one"
     <*> mirrorOpt
@@ -164,10 +167,10 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool
+program :: Bool -> CheckSum -> Bool -> Bool -> Bool -> Mode -> Bool -> Bool
         -> Mirror -> CentosChannel -> Arch -> String -> FedoraEdition
         -> IO ()
-program gpg checksum dryrun debug notimeout local run removeold mirror channel arch tgtrel edition = do
+program gpg checksum dryrun debug notimeout mode run removeold mirror channel arch tgtrel edition = do
   let mirrorUrl =
         case mirror of
           Mirror m -> m
@@ -182,38 +185,61 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
-  if local
-    then do
-    symlink <-
-      if dryrun
-      then do
-      filePrefix <- getFilePrefix showdestdir
-      -- FIXME support non-iso
-      return $ filePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> "iso"
-      else do
-      (fileurl, filenamePrefix, prime, _mchecksum, _done) <-
-        findURL mgr mirrorUrl showdestdir
-      tz <- getCurrentTimeZone
-      putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
-      putStrLn fileurl
-      return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
-    if run
-      then bootImage symlink showdestdir
-      else showSymlink symlink showdestdir
-    else do
-    (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL mgr mirrorUrl showdestdir
-    let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
-    downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
-      fileChecksum mgr mchecksum showdestdir
-    unless dryrun $ do
-      let localfile = takeFileName fileurl
-      updateSymlink localfile symlink showdestdir
-      when run $ bootImage localfile showdestdir
+  case mode of
+    ModeCheck -> do
+      (fileurl, filenamePrefix, _prime, _mchecksum, done) <-
+        findURL mgr mirrorUrl showdestdir True
+      if done
+        then do
+        putStrLn $ "Local:" +-+ takeFileName fileurl +-+ "is latest"
+        when debug $
+          putStrLn fileurl
+        else do
+        let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+        mtarget <- derefSymlink symlink
+        case mtarget of
+          Just target -> do
+            if target == takeFileName fileurl
+              then putStrLn $ "Latest:" +-+ target +-+ "(locally incomplete)"
+              else do
+              putStrLn $ "Local:" +-+ target
+              putStrLn $ "Newer:" +-+ takeFileName fileurl
+          Nothing -> putStrLn $ "Available:" +-+ takeFileName fileurl
+    ModeLocal -> do
+      symlink <-
+        if dryrun
+        then do
+        filePrefix <- getFilePrefix showdestdir
+        -- FIXME support non-iso
+        return $ filePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> "iso"
+        else do
+        (fileurl, filenamePrefix, prime, _mchecksum, _done) <-
+          findURL mgr mirrorUrl showdestdir False
+        tz <- getCurrentTimeZone
+        putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
+        putStrLn fileurl
+        return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+      if run
+        then bootImage symlink showdestdir
+        else do
+        mtarget <- derefSymlink symlink
+        whenJust mtarget $ \target ->
+          putStrLn $ "Local: " ++ showdestdir </> target
+    ModeDownload -> do
+      (fileurl, filenamePrefix, prime, mchecksum, done) <-
+        findURL mgr mirrorUrl showdestdir False
+      let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+      downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
+        fileChecksum mgr mchecksum showdestdir
+      unless dryrun $ do
+        let localfile = takeFileName fileurl
+        updateSymlink localfile symlink showdestdir
+        when run $ bootImage localfile showdestdir
   where
-    findURL :: Manager -> String -> String
+    findURL :: Manager -> String -> String -> Bool
             -- urlpath, fileprefix, primary, checksum, downloaded
             -> IO (URL, String, Primary, Maybe String, Bool)
-    findURL mgr mirrorUrl showdestdir = do
+    findURL mgr mirrorUrl showdestdir quiet = do
       (path,mrelease) <- urlPathMRel mgr
       -- use http-directory trailingSlash (0.1.7)
       let primaryDir =
@@ -245,7 +271,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
             exists <- doesFileExist localfile
             if exists
               then do
-              done <- checkLocalFileSize localfile primeSize primeTime showdestdir
+              done <- checkLocalFileSize localfile primeSize primeTime showdestdir quiet
               if done
                 then return (primeUrl,True)
                 else do
@@ -312,14 +338,14 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
         _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
 
     checkLocalFileSize :: FilePath -> Maybe Integer -> Maybe UTCTime
-                       -> String -> IO Bool
-    checkLocalFileSize localfile mprimeSize mprimeTime showdestdir = do
+                       -> String -> Bool -> IO Bool
+    checkLocalFileSize localfile mprimeSize mprimeTime showdestdir quiet = do
       localsize <- toInteger . fileSize <$> getFileStatus localfile
       if Just localsize == mprimeSize
         then do
-        when (not run && takeExtension localfile == ".iso") $ do
+        when (not quiet && not run) $ do
           tz <- getCurrentTimeZone
-          -- FIXME abbreviate size
+          -- FIXME abbreviate size?
           putStrLn $ unwords [showdestdir </> localfile, renderTime tz mprimeTime, "size " ++ show localsize ++ " okay"]
         return True
         else do
@@ -453,7 +479,7 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
       if not exists then return False
         else do
         (primeSize,primeTime) <- httpFileSizeTime mgr url
-        ok <- checkLocalFileSize checksumfile primeSize primeTime showdestdir
+        ok <- checkLocalFileSize checksumfile primeSize primeTime showdestdir True
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
 
@@ -487,17 +513,12 @@ program gpg checksum dryrun debug notimeout local run removeold mirror channel a
           createSymbolicLink target symlink
           putStrLn $ unwords [showdestdir </> symlink, "->", target]
 
-    showSymlink :: FilePath -> FilePath -> IO ()
-    showSymlink symlink showdestdir = do
-      msymlinkTarget <- do
-        havefile <- doesFileExist symlink
-        if havefile
-          then Just <$> readSymbolicLink symlink
-          else return Nothing
-      case msymlinkTarget of
-        Just symlinktarget ->
-          putStrLn $ "Local: " ++ showdestdir </> symlinktarget
-        _ -> return ()
+    derefSymlink :: FilePath -> IO (Maybe FilePath)
+    derefSymlink symlink = do
+      havefile <- doesFileExist symlink
+      if havefile
+        then Just <$> readSymbolicLink symlink
+        else return Nothing
 
 renderTime :: TimeZone -> Maybe UTCTime -> String
 renderTime tz mprimeTime =

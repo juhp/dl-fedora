@@ -16,21 +16,21 @@ previous = show (branched - 1)
 
 tests :: Bool -> [[String]]
 tests ghAction =
-  [["-n", previous, "-c"]
+  [["-n", previous, "--checksum"]
   ,["-n", "rawhide", "silverblue"]
-  ,["-n", "respin"]
+  ,["-c", "respin"]
   ,["-l", current]
   ,["-l", "rawhide", "-n"]
   ] ++
   if ghAction then []
   else
-    [["-n", current, "silverblue"]
+    [["-c", current, "silverblue"]
     ,["-n", previous, "kde"]
     ,["-T", "-n", current, "everything"]
     ,["-n", previous, "server", "--arch", "aarch64"]
     ,["-n", "c8s"]
     ,["-n", "c9s"]
-    ,["-n", "eln"]
+    ,["-c", "eln"]
     ]
 
 main :: IO ()

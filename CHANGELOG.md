@@ -2,6 +2,7 @@
 
 ## 0.10 (2023-09-05)
 - default to download.fp.o: replace --no-dl with --latest
+- new experimental --check (-c) command mode: checks for newer image
 - help: list ostree editions last
 - add Onyx (F39 Budgie ostree image)
 - allow "sb" as alias for Silverblue
