@@ -92,6 +92,6 @@ Available options:
 ```
 
 ## Contribution
-dl-fedora is distributed under the GPL 3 license or later.
+dl-fedora is distributed under the GPL license version 3 or later.
 
 Please report issues or pull requests at <https://github.com/juhp/dl-fedora>.
