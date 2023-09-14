@@ -20,7 +20,10 @@ Usage examples:
 
 `dl-fedora --run 39` : will download Fedora Workstation and boot the Live image with qemu-kvm.
 
-`dl-fedora --local rawhide` : shows the current locally available image (as well as the latest one). With `--dryrun` it doesn't check for newest iso.
+`dl-fedora --local rawhide` : shows the current locally available image
+(as well as the latest one available, unless `--dry-run` is given).
+This can be combined with `--run` to quickly run the latest local image,
+without a newer download.
 
 `dl-fedora c9s` : downloads a Centos Stream 9 net installer.
 
