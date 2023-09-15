@@ -50,7 +50,6 @@ import Text.Regex.Posix
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import DownloadDir
-import Types
 
 data FedoraEdition = Cloud
                    | Container
@@ -120,6 +119,8 @@ showChannel CSProduction = "production"
 showChannel CSTest = "test"
 showChannel CSDevelopment = "development"
 
+data Mode = Check | Local | Download Bool -- replace
+
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
@@ -137,9 +138,11 @@ main = do
     <*> checkSumOpts
     <*> switchLongWith "debug" "Debug output"
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
-    <*> (flagWith' ModeCheck 'c' "check" "check if newer image available" <|>
-         flagWith ModeDownload ModeLocal 'l' "local" "Show current local image via symlink" <*> switchWith 'n' "dry-run" "Don't actually download anything" <*> switchWith 'r' "run" "Boot image in Qemu")
-    <*> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one"
+    <*> (flagWith' Check 'c' "check" "Check if newer image available" <|>
+         flagWith' Local 'l' "local" "Show current local image" <|>
+         Download <$> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one")
+    <*> switchWith 'n' "dry-run" "Don't actually download anything"
+    <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
     <*> (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
          flagLongWith CSProduction CSTest "cs-test" "Use centos-stream test compose (default is production)")
@@ -164,10 +167,10 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool
+program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
         -> Mirror -> CentosChannel -> Arch -> String -> FedoraEdition
         -> IO ()
-program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel edition = do
+program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel edition = do
   let mirrorUrl =
         case mirror of
           Mirror m -> m
@@ -177,13 +180,13 @@ program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel e
             | tgtrel == "eln" -> odcsFpo
             | tgtrel `elem` ["c8s","c9s"] -> csComposes
             | otherwise -> downloadFpo
-  showdestdir <- setDownloadDir mode "iso"
+  showdestdir <- setDownloadDir dryrun "iso"
   when debug $ putStrLn showdestdir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
   case mode of
-    ModeCheck -> do
+    Check -> do
       (fileurl, filenamePrefix, _prime, _mchecksum, done) <-
         findURL mgr mirrorUrl showdestdir True
       if done
@@ -202,26 +205,16 @@ program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel e
               putStrLn $ "Local:" +-+ target
               putStrLn $ "Newer:" +-+ takeFileName fileurl
           Nothing -> putStrLn $ "Available:" +-+ takeFileName fileurl
-    ModeLocal dryrun run -> do
-      symlink <-
-        if dryrun
-        then do
-        filePrefix <- getFilePrefix showdestdir
+    Local -> do
+      prefix <- getFilePrefix showdestdir
         -- FIXME support non-iso
-        return $ filePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> "iso"
-        else do
-        (fileurl, filenamePrefix, prime, _mchecksum, _done) <-
-          findURL mgr mirrorUrl showdestdir False
-        tz <- getCurrentTimeZone
-        putStrLn $ unwords ["Newest:", takeFileName fileurl, renderTime tz (primaryTime prime)]
-        putStrLn fileurl
-        return $ filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+      let symlink = prefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> "iso"
       mtarget <- derefSymlink symlink
-      whenJust mtarget $ \target ->
-        if run
-        then bootImage symlink showdestdir
-        else putStrLn $ "Local: " ++ showdestdir </> target
-    ModeDownload dryrun run -> do
+      whenJust mtarget $ \target -> do
+        putStrLn $ "Local:" +-+ target
+        when run $
+          bootImage dryrun target showdestdir
+    Download removeold -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <-
         findURL mgr mirrorUrl showdestdir False
       let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
@@ -229,8 +222,8 @@ program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel e
         fileChecksum mgr mchecksum showdestdir
       unless dryrun $ do
         let localfile = takeFileName fileurl
-        updateSymlink localfile symlink showdestdir
-        when run $ bootImage localfile showdestdir
+        updateSymlink localfile symlink showdestdir removeold
+        when run $ bootImage dryrun localfile showdestdir
   where
     findURL :: Manager -> String -> String -> Bool
             -- urlpath, fileprefix, primary, checksum, downloaded
@@ -483,8 +476,8 @@ program gpg checksum debug notimeout mode removeold mirror channel arch tgtrel e
     checkForFedoraKeys =
       pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> tgtrel <> ").*@fedoraproject.org>"])
 
-    updateSymlink :: FilePath -> FilePath -> FilePath -> IO ()
-    updateSymlink target symlink showdestdir = do
+    updateSymlink :: FilePath -> FilePath -> FilePath -> Bool -> IO ()
+    updateSymlink target symlink showdestdir removeold = do
       mmsymlinkTarget <- do
         havefile <- doesFileExist symlink
         if havefile
@@ -566,8 +559,8 @@ editionMedia _ = "iso"
 liveRespin :: FedoraEdition -> String
 liveRespin = take 4 . upper . showEdition
 
-bootImage :: FilePath -> String -> IO ()
-bootImage img showdir = do
+bootImage :: Bool -> FilePath -> String -> IO ()
+bootImage dryrun img showdir = do
   let fileopts =
         case takeExtension img of
           ".iso" -> ["-boot", "d", "-cdrom"]
@@ -577,7 +570,8 @@ bootImage img showdir = do
     Just qemu -> do
       let args = ["-m", "2048", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
       cmdN qemu (args ++ [showdir </> img])
-      cmd_ qemu (args ++ [img])
+      unless dryrun $
+        cmd_ qemu (args ++ [img])
     Nothing -> error' "Need qemu to run image"
 
 #if !MIN_VERSION_http_directory(0,1,6)

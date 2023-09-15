@@ -28,7 +28,6 @@ executable dl-fedora
   main-is:             Main.hs
   other-modules:       Paths_dl_fedora
                        DownloadDir
-                       Types
 
   build-depends:       base < 5,
                        ansi-wl-pprint,
