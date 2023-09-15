@@ -128,8 +128,7 @@ main = do
                P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c8s", "c9s"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
-               P.text "See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>",
-               P.text "and also <https://fedoramagazine.org/verify-fedora-iso-file>."
+               P.text "See <https://github.com/juhp/dl-fedora/#readme>"
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $

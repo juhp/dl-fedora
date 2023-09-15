@@ -69,8 +69,7 @@ Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
              kde,lxde,lxqt,mate,soas,sway,xfce,silverblue,kinoite,onyx,
              sericea} [default: workstation]
 
-  See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>
-  and also <https://fedoramagazine.org/verify-fedora-iso-file>.
+  See <https://github.com/juhp/dl-fedora/#readme>
 
 Available options:
   -h,--help                Show this help text
@@ -97,6 +96,11 @@ Available options:
                            production)
   -a,--arch ARCH           Specify arch [default: x86_64]
 ```
+
+## References
+See <https://fedoraproject.org/wiki/Infrastructure/MirrorManager>,
+<https://admin.fedoraproject.org/mirrormanager/>,
+and also <https://fedoramagazine.org/verify-fedora-iso-file>.
 
 ## Contribution
 dl-fedora is distributed under the GPL license version 3 or later.
