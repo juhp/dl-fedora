@@ -18,7 +18,6 @@
 
 - rename 'everything' to netinstall?
 - rawhide by version number?
-- --replace/--delete options to delete old image (and checksum)?
 - configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
 - which Cloud image?
@@ -26,8 +25,9 @@
 - unify file and checksum download and size check
 - catch: HandshakeFailed (Error_Protocol ("certificate has expired",True,CertificateExpired))
   - maybe in http-directory?
-- delete older snapshot images
 
+# deletion
+- option to delete old images/snapshots (and checksum)
 - remove old hanging symlinks
 - list/delete small partial downloads
 

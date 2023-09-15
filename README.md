@@ -20,12 +20,11 @@ Usage examples:
 
 `dl-fedora --run 39` : will download Fedora Workstation and boot the Live image with qemu-kvm.
 
-`dl-fedora --check 39 respin` : checks if there is a newer 39 respin iso image
+`dl-fedora --check respin` : checks if there is a newer respin iso image
 available.
 
-`dl-fedora --local rawhide` : shows the current locally available image
-(as well as the latest one available, unless `--dry-run` is given).
-This can be combined with `--run` to quickly run the latest local image,
+`dl-fedora --local rawhide` : shows the current locally available image.
+It can be combined with `--run` to quickly run the latest local image,
 without a newer download.
 
 `dl-fedora c9s` : downloads a Centos Stream 9 net installer.
@@ -53,14 +52,14 @@ It also tries to check the iso checksum and its gpg signature.
 ## Usage
 ```shellsession
 $ dl-fedora --version
-0.10
+1.0
 $ dl-fedora --help
 Fedora iso downloader
 
 Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
                  [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | [-l|--local] [-n|--dry-run] [-r|--run]]
-                 [-R|--replace]
+                 [(-c|--check) | (-l|--local) | (-R|--replace)] [-n|--dry-run]
+                 [-r|--run]
                  [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
                  [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE [EDITION]
 
@@ -81,12 +80,12 @@ Available options:
   --checksum               Do checksum even if already downloaded
   --debug                  Debug output
   -T,--no-http-timeout     Do not timeout for http response
-  -c,--check               check if newer image available
-  -l,--local               Show current local image via symlink
-  -n,--dry-run             Don't actually download anything
-  -r,--run                 Boot image in Qemu
+  -c,--check               Check if newer image available
+  -l,--local               Show current local image
   -R,--replace             Delete previous snapshot image after downloading
                            latest one
+  -n,--dry-run             Don't actually download anything
+  -r,--run                 Boot image in QEMU
   -L,--latest              Get latest image either from mirror or dl.fp.o if
                            newer
   -d,--dl                  Use dl.fedoraproject.org (dl.fp.o)
