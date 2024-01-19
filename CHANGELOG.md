@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.1 (2024-01-19)
+- add Fedora IoT edition
+
 ## 1.0 (2023-09-15)
 - default to download.fp.o: replace --no-dl with --latest
 - new --check (-c) command mode: checks for newer image
