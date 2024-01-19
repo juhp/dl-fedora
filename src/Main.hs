@@ -70,6 +70,7 @@ data FedoraEdition = Cloud
                    | Kinoite
                    | Onyx
                    | Sericea
+                   | IoT
  deriving (Show, Enum, Bounded, Eq)
 
 showEdition :: FedoraEdition -> String
@@ -352,16 +353,19 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
             if edition `elem` fedoraSpins
             then joinPath ["Spins", showArch arch, "iso"]
             else joinPath [showEdition edition, showArch arch, editionMedia edition]
-      case tgtrel of
-        "respin" -> return ("alt/live-respins", Nothing)
-        "rawhide" -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
-        "test" -> testRelease mgr subdir
-        "stage" -> stageRelease mgr subdir
-        "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-        "c8s" -> return ("stream-8" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-        "c9s" -> return (showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-        rel | all isDigit rel -> released mgr rel subdir
-        _ -> error' "Unknown release"
+      if edition == IoT && isFedora tgtrel
+        then return ("alt/iot" +/+ tgtrel +/+ subdir, Nothing)
+        else
+        case tgtrel of
+          "respin" -> return ("alt/live-respins", Nothing)
+          "rawhide" -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
+          "test" -> testRelease mgr subdir
+          "stage" -> stageRelease mgr subdir
+          "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+          "c8s" -> return ("stream-8" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+          "c9s" -> return (showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+          rel | all isDigit rel -> released mgr rel subdir
+          _ -> error' "Unknown release"
 
     testRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
     testRelease mgr subdir = do
@@ -414,7 +418,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
               middle =
-                if edition `elem` [Cloud, Container]
+                if edition `elem` [Cloud, Container, IoT]
                 then rel ++ [".*" <> showArch arch]
                 else showArch arch : rel
           in
@@ -541,6 +545,7 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
 
 editionType :: FedoraEdition -> String
 editionType Server = "dvd"
+editionType IoT = "ostree"
 editionType Kinoite = "ostree"
 editionType Onyx = "ostree"
 editionType Sericea = "ostree"
@@ -616,3 +621,6 @@ showArch X86_64 = "x86_64"
 showArch AARCH64 = "aarch64"
 showArch S390X = "s390x"
 showArch PPC64LE = "ppc64le"
+
+isFedora :: String -> Bool
+isFedora tgtrel = tgtrel == "rawhide" || all isDigit tgtrel
