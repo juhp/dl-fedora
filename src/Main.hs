@@ -230,30 +230,35 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
             -> IO (URL, String, Primary, Maybe String, Bool)
     findURL mgr mirrorUrl showdestdir quiet = do
       (path,mrelease) <- urlPathMRel mgr
-      -- use http-directory trailingSlash (0.1.7)
-      let primaryDir =
-            case tgtrel of
-              "koji" -> kojiPkgs
-              "eln" -> odcsFpo
-              "c8s" -> odcsStream
-              "c9s" -> odcsStream
-              _ -> if mirror `elem` [DefaultLatest, DlFpo]
-                   then dlFpo
-                   else downloadFpo
-            +/+ path <> "/"
-      hrefs <- httpDirectory mgr primaryDir
+      let path' = trailingSlash path
+      (primeDir,hrefs) <-
+        case tgtrel of
+          "koji" -> getUrlDirectory kojiPkgs path'
+          "eln" -> getUrlDirectory odcsFpo path'
+          "c8s" -> getUrlDirectory odcsStream path'
+          "c9s" -> getUrlDirectory odcsStream path'
+          "c10s" -> getUrlDirectory odcsStream path'
+          _ ->
+            if mirror `elem` [DefaultLatest, DlFpo]
+            then getUrlDirectory dlFpo path'
+            else do
+              (url,ls) <- getUrlDirectory downloadFpo path'
+              if null ls
+                then getUrlDirectory dlFpo path'
+                else return (url,ls)
+      when (null hrefs) $ error' $ primeDir +-+ "is empty"
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
           mfile = find selector $ map T.unpack hrefs
           mchecksum = find ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case mfile of
         Nothing ->
-          error' $ "no match for " <> prefixPat <> " in " <> primaryDir
+          error' $ "no match for " <> prefixPat <> " in " <> primeDir
         Just file -> do
           let prefix = if '*' `elem` prefixPat
                        then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
                        else prefixPat
-              primeUrl = primaryDir +/+ file
+              primeUrl = primeDir +/+ file
           (primeSize,primeTime) <- httpFileSizeTime mgr primeUrl
           (finalurl, already) <- do
             let localfile = takeFileName primeUrl
@@ -279,6 +284,12 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
           return (finalurl, prefix, Primary primeUrl primeSize primeTime,
                   (finalDir +/+) . T.unpack <$> mchecksum, already)
         where
+          getUrlDirectory :: String -> FilePath -> IO (String, [T.Text])
+          getUrlDirectory top path = do
+            let url = top +/+ path
+            ls <- httpDirectory mgr url
+            return (url, ls)
+
           findMirror primeUrl path file = do
             url <-
               if mirrorUrl `elem` [dlFpo,kojiPkgs,odcsFpo]
@@ -379,7 +390,6 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
     stageRelease mgr subdir = do
       let path = "alt/stage"
           url = dlFpo +/+ path
-      -- use http-directory-0.1.7 noTrailingSlash
       rels <- reverse . map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
       let mrel = listToMaybe rels
       return (path +/+ fromMaybe (error' ("staged release not found in " <> url)) mrel +/+ subdir, takeWhile (/= '_') <$> mrel)
