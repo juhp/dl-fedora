@@ -1,6 +1,7 @@
 # Changelog
 
-## 1.0.1 (2024-01-19)
+## 1.0.1 (2024-05-23)
+- support c10s
 - add Fedora IoT edition
 
 ## 1.0 (2023-09-15)

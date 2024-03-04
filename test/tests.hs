@@ -30,6 +30,7 @@ tests ghAction =
     ,["-n", previous, "server", "--arch", "aarch64"]
     ,["-n", "c8s"]
     ,["-n", "c9s"]
+    ,["-n", "c10s"]
     ,["-c", "eln"]
     ]
 

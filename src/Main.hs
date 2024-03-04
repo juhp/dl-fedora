@@ -126,7 +126,7 @@ main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c8s", "c9s"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
                P.text "See <https://github.com/juhp/dl-fedora/#readme>"
@@ -178,7 +178,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
           DlFpo -> dlFpo
           _ -- UseMirror or DefaultLatest
             | tgtrel == "eln" -> odcsFpo
-            | tgtrel `elem` ["c8s","c9s"] -> csComposes
+            | tgtrel `elem` ["c8s","c9s","c10s"] -> csComposes
             | otherwise -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
   when debug $ putStrLn showdestdir
@@ -375,6 +375,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
           "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
           "c8s" -> return ("stream-8" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
           "c9s" -> return (showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+          "c10s" -> return ("stream-10" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
           rel | all isDigit rel -> released mgr rel subdir
           _ -> error' "Unknown release"
 
@@ -424,6 +425,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
         "eln" -> "Fedora-ELN"
         "c8s" -> "CentOS-Stream-8"
         "c9s" -> "CentOS-Stream-9"
+        "c10s" -> "CentOS-Stream-10"
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
