@@ -265,7 +265,8 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
             exists <- doesFileExist localfile
             if exists
               then do
-              done <- checkLocalFileSize localfile primeSize primeTime showdestdir quiet
+              localsize <- toInteger . fileSize <$> getFileStatus localfile
+              done <- checkLocalFileSize localsize localfile primeSize primeTime showdestdir quiet
               if done
                 then return (primeUrl,True)
                 else do
@@ -339,10 +340,9 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
         rel | all isDigit rel -> Just rel
         _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
 
-    checkLocalFileSize :: FilePath -> Maybe Integer -> Maybe UTCTime
+    checkLocalFileSize :: Integer -> FilePath -> Maybe Integer -> Maybe UTCTime
                        -> String -> Bool -> IO Bool
-    checkLocalFileSize localfile mprimeSize mprimeTime showdestdir quiet = do
-      localsize <- toInteger . fileSize <$> getFileStatus localfile
+    checkLocalFileSize localsize localfile mprimeSize mprimeTime showdestdir quiet = do
       if Just localsize == mprimeSize
         then do
         unless quiet $ do
@@ -493,9 +493,11 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
       exists <- doesFileExist checksumfile
       if not exists then return False
         else do
+        filesize <- toInteger . fileSize <$> getFileStatus checksumfile
+        when (filesize == 0) $ error' $ checksumfile +-+ "empty!"
         (primeSize,primeTime) <- httpFileSizeTime mgr url
         when debug $ print (primeSize,primeTime,url)
-        ok <- checkLocalFileSize checksumfile primeSize primeTime showdestdir True
+        ok <- checkLocalFileSize filesize checksumfile primeSize primeTime showdestdir True
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
 
