@@ -21,6 +21,7 @@ tests ghAction =
   ,["-c", "respin"]
   ,["-l", current]
   ,["-l", "rawhide", "-n"]
+  ,["40", "iot", "-n"]
   ] ++
   if ghAction then []
   else

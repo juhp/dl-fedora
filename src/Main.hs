@@ -332,6 +332,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
     getRelease :: Maybe String
     getRelease =
       case tgtrel of
+        -- FIXME IoT uses version for instead of Rawhide
         "rawhide" -> Just "Rawhide"
         "respin" -> Nothing
         "eln" -> Nothing
@@ -434,12 +435,15 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
-              middle =
-                if edition `elem` [Cloud, Container, IoT]
-                then rel ++ [".*" <> showArch arch]
-                else showArch arch : rel
+              (midpref,middle) =
+                case edition of
+                  -- https://github.com/fedora-iot/iot-distro/issues/1
+                  IoT -> ("", rel ++ [".*" <> showArch arch])
+                  Cloud -> ('.' : showArch arch, rel)
+                  Container -> ('.' : showArch arch, rel)
+                  _ -> ("", showArch arch : rel)
           in
-            intercalate "-" (["Fedora", showEdition edition, editionType edition] ++ middle)
+            intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle)
 
     fileChecksum :: Manager -> Maybe URL -> String -> Maybe Bool -> IO ()
     fileChecksum _ Nothing _ _ = return ()
@@ -575,8 +579,8 @@ editionType Onyx = "ostree"
 editionType Sericea = "ostree"
 editionType Silverblue = "ostree"
 editionType Everything = "netinst"
-editionType Cloud = "Base"
-editionType Container = "Base"
+editionType Cloud = "Base-Generic"
+editionType Container = "Base-Generic"
 editionType _ = "Live"
 
 editionMedia :: FedoraEdition -> String
