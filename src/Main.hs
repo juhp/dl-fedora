@@ -28,7 +28,8 @@ import Options.Applicative (fullDesc, header, progDescDoc)
 
 import Paths_dl_fedora (version)
 
-import SimpleCmd (cmd, cmd_, cmdN, error', grep_, pipe_, pipeBool, pipeFile_,
+import SimpleCmd (cmd, cmd_, cmdLog_, cmdN, error', grep_,
+                  pipe_, pipeBool, pipeFile_,
                   sudoLog, warning, (+-+))
 import SimpleCmdArgs
 import SimplePrompt (yesNo)
@@ -452,11 +453,17 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
             then checkChecksumfile mgr url checksumfile showdestdir
             else createDirectory checksumdir >> return False
         putStrLn ""
-        unless exists $
-          whenM (httpExists mgr url) $
-          withCurrentDirectory checksumdir $
-          cmd_ "curl" ["-C", "-", "-s", "-S", "-O", url]
-        haveChksum <- doesFileExist checksumfile
+        haveChksum <-
+          if exists
+          then return True
+          else do
+            remoteExists <- httpExists mgr url
+            if remoteExists
+              then do
+              withCurrentDirectory checksumdir $
+                curl debug $ (if debug then ["--silent", "--show-error"] else []) ++ ["--remote-name", url]
+              doesFileExist checksumfile
+              else return False
         if not haveChksum
           then putStrLn "No checksum file found"
           else do
@@ -466,7 +473,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
             unless havekey $ do
               putStrLn "Importing Fedora GPG keys:\n"
               -- https://fedoramagazine.org/verify-fedora-iso-file/
-              pipe_ ("curl",["-s", "-S", "https://getfedora.org/static/fedora.gpg"]) ("gpg",["--import"])
+              pipe_ ("curl",["--silent", "--show-error", "https://getfedora.org/static/fedora.gpg"]) ("gpg",["--import"])
               putStrLn ""
           chkgpg <- if pgp
             then checkForFedoraKeys
@@ -555,9 +562,7 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
       else do
       tz <- getCurrentTimeZone
       putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime, "to", showdestdir]
-      let args = ["-C", "-", "-O", url]
-      when debug $ putStrLn $ unwords $ "curl" : "--output-dir" : showdestdir : args
-      cmd_ "curl" args
+      curl debug ["--fail", "--remote-name", url]
       return (Just True)
 
 editionType :: FedoraEdition -> String
@@ -641,3 +646,7 @@ showArch PPC64LE = "ppc64le"
 
 isFedora :: String -> Bool
 isFedora tgtrel = tgtrel == "rawhide" || all isDigit tgtrel
+
+curl :: Bool -> [String] -> IO ()
+curl debug args =
+  (if debug then cmdLog_ else cmd_) "curl" $ ["--location", "--continue-at", "-"] ++ args
