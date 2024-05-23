@@ -181,7 +181,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
             | tgtrel `elem` ["c8s","c9s","c10s"] -> csComposes
             | otherwise -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
-  when debug $ putStrLn showdestdir
+  when debug $ print showdestdir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
@@ -192,8 +192,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
       if done
         then do
         putStrLn $ "Local:" +-+ takeFileName fileurl +-+ "is latest"
-        when debug $
-          putStrLn fileurl
+        when debug $ print fileurl
         else do
         let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
         mtarget <- derefSymlink symlink
@@ -287,6 +286,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
           getUrlDirectory :: String -> FilePath -> IO (String, [T.Text])
           getUrlDirectory top path = do
             let url = top +/+ path
+            when debug $ print url
             ls <- httpDirectory mgr url
             return (url, ls)
 
@@ -306,6 +306,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
                     Just u -> do
                       let url = B.unpack u
                       exists <- httpExists mgr url
+                      when debug $ print (url, exists)
                       if exists then return url
                         else return primeUrl
             return (url,False)
@@ -410,12 +411,15 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
       let dir = "fedora/linux/releases"
           url = dlFpo +/+ dir
       exists <- httpExists mgr $ url +/+ rel
-      if exists then return (dir +/+ rel +/+ subdir, Just rel)
+      when debug $ print (exists, url +/+ rel)
+      if exists
+        then return (dir +/+ rel +/+ subdir, Just rel)
         else do
         let dir' = "fedora/linux/development"
             url' = dlFpo +/+ dir'
         exists' <- httpExists mgr $ url' +/+ rel
-        if exists' then return (dir' +/+ rel +/+ subdir, Just rel)
+        if exists'
+          then return (dir' +/+ rel +/+ subdir, Just rel)
           else error' "release not found in releases/ or development/"
 
     makeFilePrefix :: Maybe String -> String
@@ -483,6 +487,7 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
       if not exists then return False
         else do
         (primeSize,primeTime) <- httpFileSizeTime mgr url
+        when debug $ print (primeSize,primeTime,url)
         ok <- checkLocalFileSize checksumfile primeSize primeTime showdestdir True
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
@@ -531,7 +536,7 @@ renderTime tz mprimeTime =
 downloadFile :: Bool -> Bool -> Bool -> Manager -> URL -> Primary -> String
              -> IO (Maybe Bool)
 downloadFile dryrun debug done mgr url prime showdestdir = do
-  putStrLn url
+  unless debug $ putStrLn url
   if done
     then return (Just False)
     else do
