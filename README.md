@@ -60,19 +60,20 @@ It also tries to check the iso checksum and its gpg signature.
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
-                 [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | (-l|--local) | (-R|--replace)] [-n|--dry-run]
-                 [-r|--run]
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
-                 [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE [EDITION]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
+                 [--debug] [-T|--no-http-timeout] 
+                 [(-c|--check) | (-l|--local) | (-R|--replace)] [-n|--dry-run] 
+                 [-r|--run] 
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
+                 [--dvd] [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE 
+                 [EDITION]
 
   Tool for downloading Fedora iso file images.
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s
   EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,i3,
              kde,lxde,lxqt,mate,soas,sway,xfce,silverblue,kinoite,onyx,sericea,
              iot} [default: workstation]
-
+  
   See <https://github.com/juhp/dl-fedora/#readme>
 
 Available options:
@@ -95,6 +96,8 @@ Available options:
   -k,--koji                Use koji.fedoraproject.org
   -m,--mirror URL          Mirror url for /pub [default
                            https://download.fedoraproject.org/pub]
+  --dvd                    Download dvd iso instead of boot netinst (for Server,
+                           eln, centos)
   --cs-devel               Use centos-stream development compose
   --cs-test                Use centos-stream test compose (default is
                            production)

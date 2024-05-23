@@ -145,6 +145,7 @@ main = do
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
+    <*> switchLongWith "dvd" "Download dvd iso instead of boot netinst (for Server, eln, centos)"
     <*> (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
          flagLongWith CSProduction CSTest "cs-test" "Use centos-stream test compose (default is production)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
@@ -169,9 +170,9 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> CentosChannel -> Arch -> String -> FedoraEdition
+        -> Mirror -> Bool -> CentosChannel -> Arch -> String -> FedoraEdition
         -> IO ()
-program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel edition = do
+program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch tgtrel edition = do
   let mirrorUrl =
         case mirror of
           Mirror m -> m
@@ -426,14 +427,16 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
           then return (dir' +/+ rel +/+ subdir, Just rel)
           else error' "release not found in releases/ or development/"
 
+    renderdvdboot = if dvdnet then "dvd1" else "boot"
+
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
       case tgtrel of
         "respin" -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
-        "eln" -> "Fedora-ELN"
-        "c8s" -> "CentOS-Stream-8"
-        "c9s" -> "CentOS-Stream-9"
-        "c10s" -> "CentOS-Stream-10"
+        "eln" -> "Fedora-ELN-.*" ++ renderdvdboot
+        "c8s" -> "CentOS-Stream-8-.*" ++ renderdvdboot
+        "c9s" -> "CentOS-Stream-9-.*" ++ renderdvdboot
+        "c10s" -> "CentOS-Stream-10-.*" ++ renderdvdboot
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
@@ -446,6 +449,18 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
                   _ -> ("", showArch arch : rel)
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle)
+
+    editionType :: FedoraEdition -> String
+    editionType Server = if dvdnet then "dvd" else "netinst"
+    editionType IoT = "ostree"
+    editionType Kinoite = "ostree"
+    editionType Onyx = "ostree"
+    editionType Sericea = "ostree"
+    editionType Silverblue = "ostree"
+    editionType Everything = "netinst"
+    editionType Cloud = "Base-Generic"
+    editionType Container = "Base-Generic"
+    editionType _ = "Live"
 
     fileChecksum :: Manager -> Maybe URL -> String -> Maybe Bool -> IO ()
     fileChecksum _ Nothing _ _ = return ()
@@ -572,18 +587,6 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
       putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime, "to", showdestdir]
       curl debug ["--fail", "--remote-name", url]
       return (Just True)
-
-editionType :: FedoraEdition -> String
-editionType Server = "dvd"
-editionType IoT = "ostree"
-editionType Kinoite = "ostree"
-editionType Onyx = "ostree"
-editionType Sericea = "ostree"
-editionType Silverblue = "ostree"
-editionType Everything = "netinst"
-editionType Cloud = "Base-Generic"
-editionType Container = "Base-Generic"
-editionType _ = "Live"
 
 editionMedia :: FedoraEdition -> String
 editionMedia Cloud = "images"

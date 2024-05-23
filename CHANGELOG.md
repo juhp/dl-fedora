@@ -1,9 +1,9 @@
 # Changelog
 
 ## 1.1 (2024-05-23)
-- respin: print matches and download latest
-- support c10s
-- add Fedora IoT edition
+- add c10s and Fedora IoT edition
+- print multiple matches and download latest
+- '--dvd' option to select dvd image rather than boot/netinst iso
 - handle empty mirror directory by falling back to dl.fp.o
 - better debug output
 - improve handling of empty checksum file
