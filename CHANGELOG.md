@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.1 (2024-05-23)
+- respin: print matches and download latest
 - support c10s
 - add Fedora IoT edition
 - handle empty mirror directory by falling back to dl.fp.o

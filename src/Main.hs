@@ -249,41 +249,43 @@ program gpg checksum debug notimeout mode dryrun run mirror channel arch tgtrel 
       when (null hrefs) $ error' $ primeDir +-+ "is empty"
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
-          mfile = find selector $ map T.unpack hrefs
+          fileslen = groupSortOn length $ filter selector $ map T.unpack hrefs
           mchecksum = find ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
-      case mfile of
-        Nothing ->
-          error' $ "no match for " <> prefixPat <> " in " <> primeDir
-        Just file -> do
-          let prefix = if '*' `elem` prefixPat
-                       then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
-                       else prefixPat
-              primeUrl = primeDir +/+ file
-          (primeSize,primeTime) <- httpFileSizeTime mgr primeUrl
-          (finalurl, already) <- do
-            let localfile = takeFileName primeUrl
-            exists <- doesFileExist localfile
-            if exists
-              then do
-              localsize <- toInteger . fileSize <$> getFileStatus localfile
-              done <- checkLocalFileSize localsize localfile primeSize primeTime showdestdir quiet
-              if done
-                then return (primeUrl,True)
-                else do
-                unlessM (writable <$> getPermissions localfile) $ do
-                  putStrLn $ localfile <> " does not have write permission!"
-                  yes <- yesNo "Fix ownership"
-                  if yes
-                    then do
-                    user <- getLoginName
-                    sudoLog "chown" [user,localfile]
-                    else
-                    error' $ localfile <> " does have write permission, aborting!"
-                findMirror primeUrl path file
-              else findMirror primeUrl path file
-          let finalDir = dropFileName finalurl
-          return (finalurl, prefix, Primary primeUrl primeSize primeTime,
-                  (finalDir +/+) . T.unpack <$> mchecksum, already)
+      if null fileslen
+        then error' $ "no match for " <> prefixPat <> " in " <> primeDir
+        else do
+        let files = head fileslen
+        when (length files > 1) $ mapM_ putStrLn files
+        let file = last files
+            prefix = if '*' `elem` prefixPat
+                     then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
+                     else prefixPat
+            primeUrl = primeDir +/+ file
+        (primeSize,primeTime) <- httpFileSizeTime mgr primeUrl
+        (finalurl, already) <- do
+          let localfile = takeFileName primeUrl
+          exists <- doesFileExist localfile
+          if exists
+            then do
+            localsize <- toInteger . fileSize <$> getFileStatus localfile
+            done <- checkLocalFileSize localsize localfile primeSize primeTime showdestdir quiet
+            if done
+              then return (primeUrl,True)
+              else do
+              unlessM (writable <$> getPermissions localfile) $ do
+                putStrLn $ localfile <> " does not have write permission!"
+                yes <- yesNo "Fix ownership"
+                if yes
+                  then do
+                  user <- getLoginName
+                  sudoLog "chown" [user,localfile]
+                  else
+                  error' $ localfile <> " does have write permission, aborting!"
+              findMirror primeUrl path file
+            else findMirror primeUrl path file
+        let finalDir = dropFileName finalurl
+        return (finalurl, prefix, Primary primeUrl primeSize primeTime,
+                (finalDir +/+) . T.unpack <$> mchecksum, already)
         where
           getUrlDirectory :: String -> FilePath -> IO (String, [T.Text])
           getUrlDirectory top path = do
