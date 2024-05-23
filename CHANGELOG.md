@@ -1,8 +1,12 @@
 # Changelog
 
-## 1.0.1 (2024-05-23)
+## 1.1 (2024-05-23)
 - support c10s
 - add Fedora IoT edition
+- handle empty mirror directory by falling back to dl.fp.o
+- better debug output
+- improve handling of empty checksum file
+- filename tweaks for Container and Cloud
 
 ## 1.0 (2023-09-15)
 - default to download.fp.o: replace --no-dl with --latest

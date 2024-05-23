@@ -9,7 +9,7 @@ dlFedora ghAction args =
 
 -- FIXME automate me
 branched :: Int
-branched = 39
+branched = 40
 current, previous :: String
 current = show branched
 previous = show (branched - 1)

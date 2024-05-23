@@ -3,6 +3,9 @@
 - print download.fp.o url
 - option to print local mirror
 
+- print mirror url when fails
+- download Container from koji
+
 - --list all latest images
 
 - warn if dir hasn't var_run_t permission

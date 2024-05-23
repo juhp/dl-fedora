@@ -12,13 +12,13 @@ Usage examples:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora 39 silverblue` : downloads the Fedora Silverblue iso
+`dl-fedora 40 silverblue` : downloads the Fedora Silverblue iso
 
 `dl-fedora respin kde` : downloads the latest KDE Live respin
 
-`dl-fedora 38 server --arch aarch64` : will download the Server iso for armv8
+`dl-fedora 39 server --arch aarch64` : will download the Server iso for armv8
 
-`dl-fedora --run 39` : will download Fedora Workstation and boot the Live image with qemu-kvm.
+`dl-fedora --run 40` : will download Fedora Workstation and boot the Live image with qemu-kvm.
 
 `dl-fedora --check respin` : checks if there is a newer respin iso image
 available.
@@ -51,26 +51,28 @@ It also tries to check the iso checksum and its gpg signature.
 
 ## Usage
 `$ dl-fedora --version`
+
 ```
-1.0.1
+1.1
 ```
 `$ dl-fedora --help`
+
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
-                 [--debug] [-T|--no-http-timeout] 
-                 [(-c|--check) | (-l|--local) | (-R|--replace)] [-n|--dry-run] 
-                 [-r|--run] 
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
+                 [--debug] [-T|--no-http-timeout]
+                 [(-c|--check) | (-l|--local) | (-R|--replace)] [-n|--dry-run]
+                 [-r|--run]
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
                  [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE [EDITION]
 
   Tool for downloading Fedora iso file images.
-  RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c8s, c9s
+  RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s
   EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,i3,
              kde,lxde,lxqt,mate,soas,sway,xfce,silverblue,kinoite,onyx,sericea,
              iot} [default: workstation]
-  
+
   See <https://github.com/juhp/dl-fedora/#readme>
 
 Available options:
