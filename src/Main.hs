@@ -220,7 +220,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
         findURL mgr mirrorUrl showdestdir False
       let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
       downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
-        fileChecksum mgr mchecksum showdestdir
+        fileChecksum mgr fileurl mchecksum showdestdir
       unless dryrun $ do
         let localfile = takeFileName fileurl
         updateSymlink localfile symlink showdestdir removeold
@@ -462,16 +462,18 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
     editionType Container = "Base-Generic"
     editionType _ = "Live"
 
-    fileChecksum :: Manager -> Maybe URL -> String -> Maybe Bool -> IO ()
-    fileChecksum _ Nothing _ _ = return ()
-    fileChecksum mgr (Just url) showdestdir mneedChecksum =
+    fileChecksum :: Manager -> String -> Maybe URL -> String -> Maybe Bool
+                 -> IO ()
+    fileChecksum _ _ Nothing _ _ = return ()
+    fileChecksum mgr imageurl (Just url) showdestdir mneedChecksum =
       when ((mneedChecksum == Just True && checksum /= NoCheckSum) || (isJust mneedChecksum && checksum == CheckSum)) $ do
         let checksumdir = ".dl-fedora-checksums"
-            checksumfile = checksumdir </> takeFileName url
+            checksumfilename = takeFileName url
+            checksumpath = checksumdir </> checksumfilename
         exists <- do
           dirExists <- doesDirectoryExist checksumdir
           if dirExists
-            then checkChecksumfile mgr url checksumfile showdestdir
+            then checkChecksumfile mgr url checksumpath showdestdir
             else createDirectory checksumdir >> return False
         putStrLn ""
         haveChksum <-
@@ -481,14 +483,15 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
             remoteExists <- httpExists mgr url
             if remoteExists
               then do
-              withCurrentDirectory checksumdir $
-                curl debug $ (if debug then ["--silent", "--show-error"] else []) ++ ["--remote-name", url]
-              doesFileExist checksumfile
+              withCurrentDirectory checksumdir $ do
+                ok <- curl debug $ (if debug then ["--silent", "--show-error"] else []) ++ ["--remote-name", url]
+                unless ok $ error' $ "failed to download" +-+ url
+              doesFileExist checksumpath
               else return False
         if not haveChksum
           then putStrLn "No checksum file found"
           else do
-          pgp <- grep_ "PGP" checksumfile
+          pgp <- grep_ "PGP" checksumpath
           when (gpg && pgp) $ do
             havekey <- checkForFedoraKeys
             unless havekey $ do
@@ -499,15 +502,17 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
           chkgpg <- if pgp
             then checkForFedoraKeys
             else return False
-          let shasum = if "CHECKSUM512" `isPrefixOf` takeFileName checksumfile
+          let shasum = if "CHECKSUM512" `isPrefixOf` checksumfilename
                        then "sha512sum" else "sha256sum"
           if chkgpg then do
             putStrLn $ "Running gpg verify and " <> shasum <> ":"
-            pipeFile_ checksumfile ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
+            pipeFile_ checksumpath ("gpg",["-q"]) (shasum, ["-c", "--ignore-missing"])
             else do
             putStrLn $ "Running " <> shasum <> ":"
             -- FIXME ignore other downloaded iso's (eg partial images error)
-            cmd_ shasum ["-c", "--ignore-missing", checksumfile]
+            pipe_
+              ("grep",[takeFileName imageurl,checksumpath])
+              (shasum,["-c","-"])
 
     checkChecksumfile :: Manager -> URL -> FilePath -> String -> IO Bool
     checkChecksumfile mgr url checksumfile showdestdir = do
