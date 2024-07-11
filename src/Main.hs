@@ -121,7 +121,7 @@ showChannel CSProduction = "production"
 showChannel CSTest = "test"
 showChannel CSDevelopment = "development"
 
-data Mode = Check | Local | Download Bool -- replace
+data Mode = Check | Local | List | Download Bool -- replace
 
 main :: IO ()
 main = do
@@ -141,6 +141,7 @@ main = do
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
     <*> (flagWith' Check 'c' "check" "Check if newer image available" <|>
          flagWith' Local 'l' "local" "Show current local image" <|>
+         flagLongWith' List "list" "List spins and editions" <|>
          Download <$> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one")
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in QEMU"
@@ -215,6 +216,9 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
         putStrLn $ "Local:" +-+ target
         when run $
           bootImage dryrun target showdestdir
+    List ->
+      -- FIXME only list/check for editions for release
+      putStrLn $ (unwords . sort . map lowerEdition) [(minBound :: FedoraEdition)..maxBound]
     Download removeold -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <-
         findURL mgr mirrorUrl showdestdir False
