@@ -28,11 +28,11 @@ import Options.Applicative (fullDesc, header, progDescDoc)
 
 import Paths_dl_fedora (version)
 
-import SimpleCmd (cmd, cmd_, cmdLog_, cmdN, error', grep_,
+import SimpleCmd (cmd, cmd_, cmdBool, cmdN, error', grep_, logMsg,
                   pipe_, pipeBool, pipeFile_,
                   sudoLog, warning, (+-+))
 import SimpleCmdArgs
-import SimplePrompt (yesNo)
+import SimplePrompt (yesNo, yesNoDefault)
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
                          findExecutable, getPermissions,
@@ -585,8 +585,16 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
       else do
       tz <- getCurrentTimeZone
       putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime, "to", showdestdir]
-      curl debug ["--fail", "--remote-name", url]
+      doCurl
       return (Just True)
+  where
+    doCurl = do
+       ok <- curl debug ["--fail", "--remote-name", url]
+       unless ok $ do
+         yes <- yesNoDefault True "retry download"
+         if yes
+         then doCurl
+         else error' "download failed"
 
 editionMedia :: FedoraEdition -> String
 editionMedia Cloud = "images"
@@ -658,6 +666,9 @@ showArch PPC64LE = "ppc64le"
 isFedora :: String -> Bool
 isFedora tgtrel = tgtrel == "rawhide" || all isDigit tgtrel
 
-curl :: Bool -> [String] -> IO ()
-curl debug args =
-  (if debug then cmdLog_ else cmd_) "curl" $ ["--location", "--continue-at", "-"] ++ args
+curl :: Bool -> [String] -> IO Bool
+curl debug args = do
+  let opts = ["--location", "--continue-at", "-"]
+  when debug $
+    logMsg $ unwords $ "curl" : opts ++ args
+  cmdBool "curl" $ opts ++ args
