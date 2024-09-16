@@ -295,7 +295,10 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
           getUrlDirectory :: String -> FilePath -> IO (String, [T.Text])
           getUrlDirectory top path = do
             let url = top +/+ path
-            when debug $ print url
+            when debug $ do
+              print url
+              redirs <- httpRedirects mgr $ replace "https:" "http:" url
+              print redirs
             ls <- httpDirectory mgr url
             return (url, ls)
 
