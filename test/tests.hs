@@ -33,6 +33,7 @@ tests ghAction =
     ,["-n", "c9s", "--dvd"]
     ,["-n", "c10s"]
     ,["-c", "eln"]
+    ,["-n", "c9s", "--cs-live-respin"]
     ]
 
 main :: IO ()

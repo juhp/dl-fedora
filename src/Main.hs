@@ -180,6 +180,7 @@ main = do
     <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
     <*> switchLongWith "dvd" "Download dvd iso instead of boot netinst (for Server, eln, centos)"
+    <*> switchLongWith "cs-live-respin" "Centos Stream Alternative Live image"
     <*> optional (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
                   flagLongWith' CSTest "cs-test" "Use centos-stream test compose" <|>
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
@@ -205,9 +206,9 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release -> FedoraEdition
-        -> IO ()
-program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch tgtrel edition = do
+        -> Mirror -> Bool -> Bool -> Maybe CentosChannel -> Arch -> Release
+        -> FedoraEdition -> IO ()
+program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchannel arch tgtrel edition = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -428,7 +429,10 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch
           return ("stream-8" +/+ showChannel (fromMaybe CSProduction mchannel) +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
         CS n -> return $
                 case mchannel of
-                  Nothing -> (show n ++ "-stream" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+                  Nothing ->
+                    if cslive
+                    then ("SIGs" +/+ show n ++ "-stream/altimages/images/live" +/+ showArch arch, Nothing)
+                    else (show n ++ "-stream" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
                   Just channel ->
                     ((if n == 9 then id else (("stream-" ++ show n) +/+)) $ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
         Fedora n ->
@@ -485,7 +489,10 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch
       case tgtrel of
         FedoraRespin -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
         ELN -> "Fedora-eln-.*" ++ renderdvdboot
-        CS n -> "CentOS-Stream-" ++ show n ++ "-.*" ++ renderdvdboot
+        CS n ->
+          if cslive
+          then "CentOS-Stream-Image-" ++ csLive edition ++ "-Live" <.> showArch arch ++ '-' : show n
+          else "CentOS-Stream-" ++ show n ++ "-.*" ++ renderdvdboot
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
@@ -734,3 +741,12 @@ curl debug args = do
 isCentosStream :: Release -> Bool
 isCentosStream (CS _) = True
 isCentosStream _ = False
+
+-- FIXME support other editions: MAX, MIN
+csLive :: FedoraEdition -> String
+csLive Workstation = "GNOME"
+csLive Cinnamon = "CINNAMON"
+csLive KDE = "KDE"
+csLive MATE = "MATE"
+csLive Xfce = "XFCE"
+csLive ed = error' $ "unsupported edition:" +-+ showEdition ed
