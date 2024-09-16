@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2 (2024-09-17)
+- default centos-stream to mirror.stream.centos.org
+- initial support for CS Alternative Live respins
+- refactoring for new Release type
+- new --list command to list all spins/editions
+- checksum now only runs for downloaded (specified) image
+- fix fedora.gpg url
+- prompt to retry (continue) download if curl errors
+- --debug: output redirects, including http -> https
+
 ## 1.1 (2024-05-23)
 - add c10s and Fedora IoT edition
 - print multiple matches and download latest

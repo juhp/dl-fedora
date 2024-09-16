@@ -12,13 +12,13 @@ Usage examples:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora 40 silverblue` : downloads the Fedora Silverblue iso
+`dl-fedora 41 silverblue` : downloads the Fedora Silverblue iso
 
 `dl-fedora respin kde` : downloads the latest KDE Live respin
 
-`dl-fedora 39 server --arch aarch64` : will download the Server iso for armv8
+`dl-fedora 40 server --arch aarch64` : will download the Server iso for armv8
 
-`dl-fedora --run 40` : will download Fedora Workstation and boot the Live image with qemu-kvm.
+`dl-fedora --run 41` : will download Fedora Workstation and boot the Live image with qemu-kvm.
 
 `dl-fedora --check respin` : checks if there is a newer respin iso image
 available.
@@ -38,7 +38,7 @@ it will use that directory instead.
 `download.fedoraproject.org` by default.
 If you want to ensure getting the very latest image you can use `--latest`,
 which will then download from `dl.fedoraproject.org` instead
-_if_ your mirror is not synced yet. (This behavior changed with 0.10.)
+_if_ your mirror is not synced yet.
 
 If the image is already found to be downloaded
 it will not be re-downloaded of course.
@@ -53,27 +53,28 @@ It also tries to check the iso checksum and its gpg signature.
 `$ dl-fedora --version`
 
 ```
-1.1
+1.2
 ```
 `$ dl-fedora --help`
 
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
-                 [--debug] [-T|--no-http-timeout] 
-                 [(-c|--check) | (-l|--local) | (-R|--replace)] [-n|--dry-run] 
-                 [-r|--run] 
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
-                 [--dvd] [--cs-devel | --cs-test] [-a|--arch ARCH] RELEASE 
-                 [EDITION]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
+                 [--debug] [-T|--no-http-timeout]
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
+                 [-n|--dry-run] [-r|--run]
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
+                 [--dvd] [--cs-live-respin]
+                 [--cs-devel | --cs-test | --cs-production] [-a|--arch ARCH]
+                 RELEASE [EDITION]
 
   Tool for downloading Fedora iso file images.
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s
   EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,i3,
              kde,lxde,lxqt,mate,soas,sway,xfce,silverblue,kinoite,onyx,sericea,
              iot} [default: workstation]
-  
+
   See <https://github.com/juhp/dl-fedora/#readme>
 
 Available options:
@@ -86,6 +87,7 @@ Available options:
   -T,--no-http-timeout     Do not timeout for http response
   -c,--check               Check if newer image available
   -l,--local               Show current local image
+  --list                   List spins and editions
   -R,--replace             Delete previous snapshot image after downloading
                            latest one
   -n,--dry-run             Don't actually download anything
@@ -98,9 +100,11 @@ Available options:
                            https://download.fedoraproject.org/pub]
   --dvd                    Download dvd iso instead of boot netinst (for Server,
                            eln, centos)
+  --cs-live-respin         Centos Stream Alternative Live image
   --cs-devel               Use centos-stream development compose
-  --cs-test                Use centos-stream test compose (default is
-                           production)
+  --cs-test                Use centos-stream test compose
+  --cs-production          Use centos-stream production compose (default is
+                           mirror.stream.centos.org)
   -a,--arch ARCH           Specify arch [default: x86_64]
 ```
 

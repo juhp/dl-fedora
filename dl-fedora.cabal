@@ -1,6 +1,6 @@
 cabal-version:       1.18
 name:                dl-fedora
-version:             1.1
+version:             1.2
 synopsis:            Fedora image download tool
 description:
             Tool to download Fedora and Centos Stream iso and image files.
@@ -9,16 +9,16 @@ license:             GPL-3
 license-file:        LICENSE
 homepage:            https://github.com/juhp/dl-fedora
 bug-reports:         https://github.com/juhp/dl-fedora/issues
-author:              Jens Petersen
-maintainer:          juhpetersen@gmail.com
+author:              Jens Petersen <juhpetersen@gmail.com>
+maintainer:          Jens Petersen <juhpetersen@gmail.com>
 copyright:           2019-2024  Jens Petersen
 category:            Utility
 build-type:          Simple
 extra-doc-files:     README.md
-                   , CHANGELOG.md
+                     CHANGELOG.md
 tested-with:         GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4,
                      GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.8, GHC == 9.4.8,
-                     GHC == 9.6.5, GHC == 9.8.2
+                     GHC == 9.6.6, GHC == 9.8.2
 
 source-repository head
   type:     git
