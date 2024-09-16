@@ -5,7 +5,7 @@ import SimpleCmd
 dlFedora :: Bool -> [String] -> IO ()
 dlFedora ghAction args =
   putStrLn "" >> cmdLog "dl-fedora"
-  ((if ghAction then (("-d" :) . ("-T" :)) else id) args)
+  ((if ghAction then ("-d" :) . ("-T" :) else id) args)
 
 -- FIXME automate me
 branched :: Int
