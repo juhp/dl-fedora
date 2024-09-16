@@ -136,7 +136,7 @@ main = do
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
-    <*> checkSumOpts
+    <*> checksumOpts
     <*> switchLongWith "debug" "Debug output"
     <*> switchWith 'T' "no-http-timeout" "Do not timeout for http response"
     <*> (flagWith' Check 'c' "check" "Check if newer image available" <|>
@@ -161,8 +161,8 @@ main = do
       Mirror <$> strOptionWith 'm' "mirror" "URL" ("Mirror url for /pub [default " ++ downloadFpo ++ "]") <|>
       pure UseMirror
 
-    checkSumOpts :: Parser CheckSum
-    checkSumOpts =
+    checksumOpts :: Parser CheckSum
+    checksumOpts =
       flagLongWith' NoCheckSum "no-checksum" "Do not check checksum" <|>
       flagLongWith AutoCheckSum CheckSum "checksum" "Do checksum even if already downloaded"
 
