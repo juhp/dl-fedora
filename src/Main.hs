@@ -23,6 +23,7 @@ import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
 import Network.HTTP.Client.TLS
 import Network.HTTP.Directory
+import Numeric.Natural
 
 import Options.Applicative (fullDesc, header, progDescDoc)
 
@@ -102,13 +103,15 @@ fedoraSpins = [Budgie .. Xfce]
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
 
-dlFpo, downloadFpo, kojiPkgs, odcsFpo, csComposes, odcsStream :: String
-dlFpo = "https://dl.fedoraproject.org/pub"
-downloadFpo = "https://download.fedoraproject.org/pub"
+dlFpo, downloadFpo, kojiPkgs, odcsFpo, csComposes, odcsStream, csMirror
+  :: String
+dlFpo = "https://dl.fedoraproject.org/pub" -- main repo
+downloadFpo = "https://download.fedoraproject.org/pub" -- mirror redirect
 kojiPkgs = "https://kojipkgs.fedoraproject.org/compose"
 odcsFpo = "https://odcs.fedoraproject.org/composes"
 csComposes = "https://composes.stream.centos.org"
-odcsStream = "https://odcs.stream.centos.org"
+odcsStream = "https://odcs.stream.centos.org" -- no cdn
+csMirror = "https://mirror.stream.centos.org"
 
 data Mirror = DlFpo | UseMirror | KojiFpo | Mirror String | DefaultLatest
   deriving Eq
@@ -120,6 +123,36 @@ showChannel :: CentosChannel -> String
 showChannel CSProduction = "production"
 showChannel CSTest = "test"
 showChannel CSDevelopment = "development"
+
+data Release = Fedora Natural
+             | FedoraRespin
+             | Rawhide
+             | FedoraTest
+             | FedoraStage
+             | ELN
+             | CS Natural
+  deriving Eq
+
+readRelease :: String -> Release
+readRelease rel =
+  case lower rel of
+    'f': n@(_:_) | all isDigit n -> Fedora (read n)
+    n@(_:_) | all isDigit n ->
+              let v = read n in
+                case compare v 11 of
+                  LT -> CS v
+                  EQ -> ELN
+                  GT -> Fedora v
+    -- FIXME hardcoding
+    "c8s" -> CS 8
+    "c9s" -> CS 9
+    "c10s" -> CS 10
+    "respin" -> FedoraRespin
+    "rawhide" -> Rawhide
+    "test" -> FedoraTest
+    "stage" -> FedoraStage
+    "eln" -> ELN
+    _ -> error' "unknown release"
 
 data Mode = Check | Local | List | Download Bool -- replace
 
@@ -147,10 +180,11 @@ main = do
     <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
     <*> switchLongWith "dvd" "Download dvd iso instead of boot netinst (for Server, eln, centos)"
-    <*> (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
-         flagLongWith CSProduction CSTest "cs-test" "Use centos-stream test compose (default is production)")
+    <*> optional (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
+                  flagLongWith' CSTest "cs-test" "Use centos-stream test compose" <|>
+                  flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
-    <*> strArg "RELEASE"
+    <*> (readRelease <$> strArg "RELEASE")
     <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
   where
     mirrorOpt :: Parser Mirror
@@ -171,18 +205,25 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> CentosChannel -> Arch -> String -> FedoraEdition
+        -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release -> FedoraEdition
         -> IO ()
-program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch tgtrel edition = do
+program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch tgtrel edition = do
+  when (isJust mchannel && not (isCentosStream tgtrel)) $
+    error' "channels are only for centos-stream"
   let mirrorUrl =
         case mirror of
           Mirror m -> m
           KojiFpo -> kojiPkgs
           DlFpo -> dlFpo
-          _ -- UseMirror or DefaultLatest
-            | tgtrel == "eln" -> odcsFpo
-            | tgtrel `elem` ["c8s","c9s","c10s"] -> csComposes
-            | otherwise -> downloadFpo
+          -- UseMirror or DefaultLatest
+          _ ->
+            case tgtrel of
+              ELN -> odcsFpo
+              CS n | n >= 9 -> if isJust mchannel
+                               then csComposes
+                               else csMirror
+              CS 8 -> csComposes
+              _ -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
   when debug $ print showdestdir
   mgr <- if notimeout
@@ -197,7 +238,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
         putStrLn $ "Local:" +-+ takeFileName fileurl +-+ "is latest"
         when debug $ print fileurl
         else do
-        let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+        let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
         mtarget <- derefSymlink symlink
         case mtarget of
           Just target -> do
@@ -210,7 +251,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
     Local -> do
       prefix <- getFilePrefix showdestdir
         -- FIXME support non-iso
-      let symlink = prefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> "iso"
+      let symlink = prefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> "iso"
       mtarget <- derefSymlink symlink
       whenJust mtarget $ \target -> do
         putStrLn $ "Local:" +-+ target
@@ -222,7 +263,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
     Download removeold -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <-
         findURL mgr mirrorUrl showdestdir False
-      let symlink = filenamePrefix <> (if tgtrel == "eln" then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+      let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
       downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
         fileChecksum mgr fileurl mchecksum showdestdir
       unless dryrun $ do
@@ -238,11 +279,12 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
       let path' = trailingSlash path
       (primeDir,hrefs) <-
         case tgtrel of
-          "koji" -> getUrlDirectory kojiPkgs path'
-          "eln" -> getUrlDirectory odcsFpo path'
-          "c8s" -> getUrlDirectory odcsStream path'
-          "c9s" -> getUrlDirectory odcsStream path'
-          "c10s" -> getUrlDirectory odcsStream path'
+          -- "koji" -> getUrlDirectory kojiPkgs path'
+          ELN -> getUrlDirectory odcsFpo path'
+          CS n ->
+            if n < 9 || isJust mchannel
+            then getUrlDirectory odcsStream path'
+            else getUrlDirectory csMirror path'
           _ ->
             if mirror `elem` [DefaultLatest, DlFpo]
             then getUrlDirectory dlFpo path'
@@ -255,7 +297,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
       let prefixPat = makeFilePrefix mrelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
           fileslen = groupSortOn length $ filter selector $ map T.unpack hrefs
-          mchecksum = find ((if tgtrel == "respin" then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
+          mchecksum = find ((if tgtrel == FedoraRespin then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       if null fileslen
         then error' $ "no match for " <> prefixPat <> " in " <> primeDir
         else do
@@ -343,13 +385,12 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
     getRelease =
       case tgtrel of
         -- FIXME IoT uses version for instead of Rawhide
-        "rawhide" -> Just "Rawhide"
-        "respin" -> Nothing
-        "eln" -> Nothing
-        "c8s" -> Nothing
-        "c9s" -> Nothing
-        rel | all isDigit rel -> Just rel
-        _ -> error' $ tgtrel ++ " is unsupported with --dryrun"
+        Rawhide -> Just "Rawhide"
+        FedoraRespin -> Nothing
+        ELN -> Nothing
+        CS _ -> Nothing
+        Fedora rel -> Just (show rel)
+        _ -> error' "release target is unsupported with --dryrun"
 
     checkLocalFileSize :: Integer -> FilePath -> Maybe Integer -> Maybe UTCTime
                        -> String -> Bool -> IO Bool
@@ -377,20 +418,23 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
             if edition `elem` fedoraSpins
             then joinPath ["Spins", showArch arch, "iso"]
             else joinPath [showEdition edition, showArch arch, editionMedia edition]
-      if edition == IoT && isFedora tgtrel
-        then return ("alt/iot" +/+ tgtrel +/+ subdir, Nothing)
-        else
-        case tgtrel of
-          "respin" -> return ("alt/live-respins", Nothing)
-          "rawhide" -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
-          "test" -> testRelease mgr subdir
-          "stage" -> stageRelease mgr subdir
-          "eln" -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-          "c8s" -> return ("stream-8" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-          "c9s" -> return (showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-          "c10s" -> return ("stream-10" +/+ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-          rel | all isDigit rel -> released mgr rel subdir
-          _ -> error' "Unknown release"
+      case tgtrel of
+        FedoraRespin -> return ("alt/live-respins", Nothing)
+        Rawhide -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
+        FedoraTest -> testRelease mgr subdir
+        FedoraStage -> stageRelease mgr subdir
+        ELN -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+        CS 8 ->
+          return ("stream-8" +/+ showChannel (fromMaybe CSProduction mchannel) +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+        CS n -> return $
+                case mchannel of
+                  Nothing -> (show n ++ "-stream" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+                  Just channel ->
+                    ((if n == 9 then id else (("stream-" ++ show n) +/+)) $ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+        Fedora n ->
+          if edition == IoT
+          then return ("alt/iot" +/+ show n +/+ subdir, Nothing)
+          else released mgr (show n) subdir
 
     testRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
     testRelease mgr subdir = do
@@ -439,11 +483,9 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
       case tgtrel of
-        "respin" -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
-        "eln" -> "Fedora-ELN-.*" ++ renderdvdboot
-        "c8s" -> "CentOS-Stream-8-.*" ++ renderdvdboot
-        "c9s" -> "CentOS-Stream-9-.*" ++ renderdvdboot
-        "c10s" -> "CentOS-Stream-10-.*" ++ renderdvdboot
+        FedoraRespin -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
+        ELN -> "Fedora-eln-.*" ++ renderdvdboot
+        CS n -> "CentOS-Stream-" ++ show n ++ "-.*" ++ renderdvdboot
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
@@ -500,14 +542,21 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
           else do
           pgp <- grep_ "PGP" checksumpath
           when (gpg && pgp) $ do
-            havekey <- checkForFedoraKeys
-            unless havekey $ do
-              putStrLn "Importing Fedora GPG keys:\n"
-              -- https://fedoramagazine.org/verify-fedora-iso-file/
-              pipe_ ("curl",["--silent", "--show-error", "https://getfedora.org/static/fedora.gpg"]) ("gpg",["--import"])
-              putStrLn ""
-          chkgpg <- if pgp
-            then checkForFedoraKeys
+            case tgtrel of
+              Fedora n -> do
+                havekey <- checkForFedoraKeys n
+                unless havekey $ do
+                  putStrLn "Importing Fedora GPG keys:\n"
+                  -- https://fedoramagazine.org/verify-fedora-iso-file/
+                  pipe_ ("curl",["--silent", "--show-error", "https://fedoraproject.org/fedora.gpg"]) ("gpg",["--import"])
+                  putStrLn ""
+              _ -> return ()
+          chkgpg <-
+            if pgp
+            then
+              case tgtrel of
+                Fedora n -> checkForFedoraKeys n
+                _ -> return False
             else return False
           let shasum = if "CHECKSUM512" `isPrefixOf` checksumfilename
                        then "sha512sum" else "sha256sum"
@@ -534,9 +583,9 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet channel arch 
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
 
-    checkForFedoraKeys :: IO Bool
-    checkForFedoraKeys =
-      pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> tgtrel <> ").*@fedoraproject.org>"])
+    checkForFedoraKeys :: Natural -> IO Bool
+    checkForFedoraKeys n =
+      pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> show n <> ").*@fedoraproject.org>"])
 
     updateSymlink :: FilePath -> FilePath -> FilePath -> Bool -> IO ()
     updateSymlink target symlink showdestdir removeold = do
@@ -675,12 +724,13 @@ showArch AARCH64 = "aarch64"
 showArch S390X = "s390x"
 showArch PPC64LE = "ppc64le"
 
-isFedora :: String -> Bool
-isFedora tgtrel = tgtrel == "rawhide" || all isDigit tgtrel
-
 curl :: Bool -> [String] -> IO Bool
 curl debug args = do
   let opts = ["--location", "--continue-at", "-"]
   when debug $
     logMsg $ unwords $ "curl" : opts ++ args
   cmdBool "curl" $ opts ++ args
+
+isCentosStream :: Release -> Bool
+isCentosStream (CS _) = True
+isCentosStream _ = False
