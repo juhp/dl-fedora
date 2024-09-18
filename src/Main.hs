@@ -328,7 +328,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                   user <- getLoginName
                   sudoLog "chown" [user,localfile]
                   else
-                  error' $ localfile <> " does have write permission, aborting!"
+                  error' $ localfile <> " does not have write permission, aborting!"
               findMirror primeUrl path file
             else findMirror primeUrl path file
         let finalDir = dropFileName finalurl
