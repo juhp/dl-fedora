@@ -62,9 +62,11 @@ data FedoraEdition = Cloud
                    | Cinnamon
                    | I3
                    | KDE
+                   | KDEMobile -- made with Kiwi
                    | LXDE
                    | LXQt
                    | MATE
+                   | Miracle -- made with Kiwi
                    | SoaS
                    | Sway
                    | Xfce  -- last spin: used below
@@ -76,7 +78,9 @@ data FedoraEdition = Cloud
  deriving (Show, Enum, Bounded, Eq)
 
 showEdition :: FedoraEdition -> String
+showEdition KDEMobile = "KDE-Mobile"
 showEdition MATE = "MATE_Compiz"
+showEdition Miracle = "MiracleWM"
 showEdition I3 = "i3"
 showEdition e = show e
 
@@ -99,6 +103,9 @@ type URL = String
 
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Budgie .. Xfce]
+
+kiwiSpins :: [FedoraEdition]
+kiwiSpins = [Miracle, KDEMobile]
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
@@ -502,7 +509,10 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                   IoT -> ("", rel ++ [".*" <> showArch arch])
                   Cloud -> ('.' : showArch arch, rel)
                   Container -> ('.' : showArch arch, rel)
-                  _ -> ("", showArch arch : rel)
+                  _ -> ("",
+                        if edition `elem` kiwiSpins
+                        then rel
+                        else showArch arch : rel)
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle)
 
