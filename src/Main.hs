@@ -31,7 +31,13 @@ import Paths_dl_fedora (version)
 
 import SimpleCmd (cmd, cmd_, cmdBool, cmdN, error', grep_, logMsg,
                   pipe_, pipeBool, pipeFile_,
-                  sudoLog, warning, (+-+))
+                  warning, (+-+),
+#if MIN_VERSION_simple_cmd(0,2,7)
+                  sudoLog
+#else
+                  sudo_
+#endif
+                  )
 import SimpleCmdArgs
 import SimplePrompt (yesNo, yesNoDefault)
 
@@ -760,3 +766,10 @@ csLive KDE = "KDE"
 csLive MATE = "MATE"
 csLive Xfce = "XFCE"
 csLive ed = error' $ "unsupported edition:" +-+ showEdition ed
+
+#if !MIN_VERSION_simple_cmd(0,2,7)
+sudoLog :: String -- ^ command
+     -> [String] -- ^ arguments
+     -> IO ()
+sudoLog = sudo_
+#endif

@@ -42,7 +42,7 @@ executable dl-fedora
                        http-types,
                        optparse-applicative,
                        regex-posix,
-                       simple-cmd >= 0.2.7,
+                       simple-cmd >= 0.2,
                        simple-cmd-args >= 0.1.8,
                        simple-prompt >= 0.2,
                        text,
