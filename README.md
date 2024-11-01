@@ -60,21 +60,21 @@ It also tries to check the iso checksum and its gpg signature.
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
-                 [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
-                 [-n|--dry-run] [-r|--run]
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
-                 [--dvd] [--cs-live-respin]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
+                 [--debug] [-T|--no-http-timeout] 
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
+                 [-n|--dry-run] [-r|--run] 
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
+                 [--dvd] [--cs-live-respin] 
                  [--cs-devel | --cs-test | --cs-production] [-a|--arch ARCH]
                  RELEASE [EDITION]
 
   Tool for downloading Fedora iso file images.
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s
   EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,i3,
-             kde,lxde,lxqt,mate,soas,sway,xfce,silverblue,kinoite,onyx,sericea,
-             iot} [default: workstation]
-
+             kde,kdemobile,lxde,lxqt,mate,miracle,soas,sway,xfce,silverblue,
+             kinoite,onyx,sericea,iot} [default: workstation]
+  
   See <https://github.com/juhp/dl-fedora/#readme>
 
 Available options:

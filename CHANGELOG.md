@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.1 (2024-11-01)
+- add MiracleWM and KDE_Mobile Live images
+
 ## 1.2 (2024-09-17)
 - default centos-stream to mirror.stream.centos.org
 - initial support for CS Alternative Live respins
