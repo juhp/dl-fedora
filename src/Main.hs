@@ -698,7 +698,7 @@ bootImage dryrun img showdir = do
   mQemu <- findExecutable "qemu-kvm"
   case mQemu of
     Just qemu -> do
-      let args = ["-m", "2048", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
+      let args = ["-m", "3072", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
       cmdN qemu (args ++ [showdir </> img])
       unless dryrun $
         cmd_ qemu (args ++ [img])
