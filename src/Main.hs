@@ -65,7 +65,8 @@ data FedoraEdition = Cloud
                    | Server
                    | Workstation
                    | Budgie  -- first spin: used below
-                   | Cinnamon
+                   | Cinnamon -- going away?
+                   | COSMIC -- made with Kiwi
                    | I3
                    | KDE
                    | KDEMobile -- made with Kiwi
@@ -111,7 +112,7 @@ fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Budgie .. Xfce]
 
 kiwiSpins :: [FedoraEdition]
-kiwiSpins = [Miracle, KDEMobile]
+kiwiSpins = [COSMIC, KDEMobile, Miracle]
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
