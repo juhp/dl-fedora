@@ -18,7 +18,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime, TimeZone)
-
+import qualified Distribution.Fedora.Release as Fedora
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
 import Network.HTTP.Client.TLS
@@ -147,8 +147,8 @@ data Release = Fedora Natural
              | CS Natural
   deriving Eq
 
-readRelease :: String -> Release
-readRelease rel =
+readRelease :: Natural -> String -> Release
+readRelease rawhide rel =
   case lower rel of
     'f': n@(_:_) | all isDigit n -> Fedora (read n)
     n@(_:_) | all isDigit n ->
@@ -156,7 +156,11 @@ readRelease rel =
                 case compare v 11 of
                   LT -> CS v
                   EQ -> ELN
-                  GT -> Fedora v
+                  GT ->
+                    case compare v rawhide of
+                      LT -> Fedora v
+                      EQ -> Rawhide
+                      GT -> error' $ "Current rawhide is" +-+ show rawhide
     -- FIXME hardcoding
     "c8s" -> CS 8
     "c9s" -> CS 9
@@ -180,6 +184,7 @@ main = do
                P.text "See <https://github.com/juhp/dl-fedora/#readme>"
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
+  rawhideVersion <- Fedora.getRawhideVersion
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
@@ -199,7 +204,7 @@ main = do
                   flagLongWith' CSTest "cs-test" "Use centos-stream test compose" <|>
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
-    <*> (readRelease <$> strArg "RELEASE")
+    <*> (readRelease rawhideVersion <$> strArg "RELEASE")
     <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
   where
     mirrorOpt :: Parser Mirror

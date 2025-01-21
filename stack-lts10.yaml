@@ -7,3 +7,7 @@ extra-deps:
   - simple-cmd-args-0.1.8
   - http-date-0.0.7
   - simple-prompt-0.2.1
+  - fedora-releases-0.2.1
+  - bodhi-0.1.0
+  - cached-json-file-0.1.1
+  - http-query-0.1.2

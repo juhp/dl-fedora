@@ -1,0 +1,5 @@
+resolver: lts-22.43
+extra-deps:
+  - fedora-releases-0.2.1
+  # workaround attoparsec failure for http-date
+  - os-string-2.0.6

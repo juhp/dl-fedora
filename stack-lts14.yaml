@@ -3,4 +3,7 @@ extra-deps:
   - http-directory-0.1.10
   - simple-cmd-args-0.1.8
   - simple-prompt-0.2.1
-#  - simple-cmd-0.2.7
+  - fedora-releases-0.2.1
+  - bodhi-0.1.0
+  - cached-json-file-0.1.1
+  - http-query-0.1.2

@@ -35,6 +35,7 @@ executable dl-fedora
                        bytestring,
                        directory >= 1.2.5,
                        extra,
+                       fedora-releases,
                        filepath,
                        http-client,
                        http-client-tls,

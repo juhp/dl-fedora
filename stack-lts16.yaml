@@ -1,12 +1,8 @@
-resolver: lts-13.30
-
+resolver: lts-16.31
 extra-deps:
-  - simple-cmd-0.2.1
-  - xdg-userdirs-0.1.0.2
   - http-directory-0.1.10
   - simple-cmd-args-0.1.8
   - simple-prompt-0.2.1
   - fedora-releases-0.2.1
   - bodhi-0.1.0
   - cached-json-file-0.1.1
-  - http-query-0.1.2
