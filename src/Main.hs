@@ -386,7 +386,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
 
     getFilePrefix :: String -> IO String
     getFilePrefix showdestdir = do
-      let prefixPat = makeFilePrefix getRelease
+      rel <- getRelease
+      let prefixPat = makeFilePrefix rel
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
       -- FIXME filter to symlinks only
       files <- listDirectory "."
@@ -400,15 +401,17 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                        else prefixPat
           return prefix
 
-    getRelease :: Maybe String
+    getRelease :: IO (Maybe String)
     getRelease =
       case tgtrel of
         -- FIXME IoT uses version for instead of Rawhide
-        Rawhide -> Just "Rawhide"
-        FedoraRespin -> Nothing
-        ELN -> Nothing
-        CS _ -> Nothing
-        Fedora rel -> Just (show rel)
+        Rawhide -> return $ Just "Rawhide"
+        FedoraRespin -> do
+          current <- Fedora.getCurrentFedoraVersion
+          return $ Just $ show current
+        ELN -> return Nothing
+        CS _ -> return Nothing
+        Fedora rel -> return $ Just (show rel)
         _ -> error' "release target is unsupported with --dryrun"
 
     checkLocalFileSize :: Integer -> FilePath -> Maybe Integer -> Maybe UTCTime
@@ -438,7 +441,9 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
             then joinPath ["Spins", showArch arch, "iso"]
             else joinPath [showEdition edition, showArch arch, editionMedia edition]
       case tgtrel of
-        FedoraRespin -> return ("alt/live-respins", Nothing)
+        FedoraRespin -> do
+          rel <- Fedora.getCurrentFedoraVersion
+          return ("alt/live-respins", Just (show rel))
         Rawhide -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
         FedoraTest -> testRelease mgr subdir
         FedoraStage -> stageRelease mgr subdir
@@ -505,7 +510,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
       case tgtrel of
-        FedoraRespin -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
+        FedoraRespin | isJust mrelease -> 'F' : fromJust mrelease ++ "*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
         ELN -> "Fedora-eln-.*" ++ renderdvdboot
         CS n ->
           if cslive
