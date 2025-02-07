@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2 (2025-02-07)
+- add COSMIC for F42
+- rawhide can now be specified by version number (uses fedora-release)
+- respin --local: now correctly lists latest respin (not oldest)
+- bump QEMU mem to 3GB
+- remove head use for fileslen
+
 ## 1.2.1 (2024-11-01)
 - add MiracleWM and KDE_Mobile Live images
 
