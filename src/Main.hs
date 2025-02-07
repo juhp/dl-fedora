@@ -486,7 +486,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     --       prefix = "latest-Fedora-"
     --   latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> httpDirectory mgr url
     --   let mlatest = listToMaybe latest
-    --   return (path +/+ fromMaybe (error' ("koji branched latest dir not not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
+    --   return (path +/+ fromMaybe (error' ("koji branched latest dir not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
 
     -- use https://admin.fedoraproject.org/pkgdb/api/collections ?
     released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
