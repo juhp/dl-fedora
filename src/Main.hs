@@ -14,6 +14,7 @@ import Control.Monad.Extra
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit)
 import Data.List.Extra
+import Data.Ord (comparing, Down(Down))
 import Data.Maybe
 import qualified Data.Text as T
 import Data.Time (UTCTime)
@@ -42,8 +43,8 @@ import SimpleCmdArgs
 import SimplePrompt (yesNo, yesNoDefault)
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
-                         findExecutable, getPermissions,
-                         listDirectory, removeFile, withCurrentDirectory,
+                         findExecutable, getPermissions, listDirectory,
+                         pathIsSymbolicLink, removeFile, withCurrentDirectory,
                          writable)
 import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
                         (</>), (<.>))
@@ -386,32 +387,29 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
 
     getFilePrefix :: String -> IO String
     getFilePrefix showdestdir = do
-      rel <- getRelease
-      let prefixPat = makeFilePrefix rel
+      let prefixPat = makeFilePrefix getRelease
           selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
-      -- FIXME filter to symlinks only
-      files <- listDirectory "."
-      case find selector files of
-        Nothing -> return $ if '*' `elem` prefixPat
-          then error' $ "no match for " <> prefixPat <> " in " <> showdestdir
-          else prefixPat
-        Just file -> do
-          let prefix = if '*' `elem` prefixPat
-                       then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
-                       else prefixPat
-          return prefix
+      symlinks <- listDirectory "." >>= filterM pathIsSymbolicLink
+      return $
+        case find selector (reverseSort symlinks) of
+          Nothing ->
+            if '*' `elem` prefixPat
+            then error' $ "no match for " <> prefixPat <> " in " <> showdestdir
+            else prefixPat
+          Just symlink ->
+            if '*' `elem` prefixPat
+            then (symlink =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
+            else prefixPat
 
-    getRelease :: IO (Maybe String)
+    getRelease :: Maybe String
     getRelease =
       case tgtrel of
         -- FIXME IoT uses version for instead of Rawhide
-        Rawhide -> return $ Just "Rawhide"
-        FedoraRespin -> do
-          current <- Fedora.getCurrentFedoraVersion
-          return $ Just $ show current
-        ELN -> return Nothing
-        CS _ -> return Nothing
-        Fedora rel -> return $ Just (show rel)
+        Rawhide -> Just "Rawhide"
+        FedoraRespin -> Nothing
+        ELN -> Nothing
+        CS _ -> Nothing
+        Fedora rel -> Just $ show rel
         _ -> error' "release target is unsupported with --dryrun"
 
     checkLocalFileSize :: Integer -> FilePath -> Maybe Integer -> Maybe UTCTime
@@ -441,9 +439,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
             then joinPath ["Spins", showArch arch, "iso"]
             else joinPath [showEdition edition, showArch arch, editionMedia edition]
       case tgtrel of
-        FedoraRespin -> do
-          rel <- Fedora.getCurrentFedoraVersion
-          return ("alt/live-respins", Just (show rel))
+        FedoraRespin -> return ("alt/live-respins", Nothing)
         Rawhide -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
         FedoraTest -> testRelease mgr subdir
         FedoraStage -> stageRelease mgr subdir
@@ -510,7 +506,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     makeFilePrefix :: Maybe String -> String
     makeFilePrefix mrelease =
       case tgtrel of
-        FedoraRespin | isJust mrelease -> 'F' : fromJust mrelease ++ "*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
+        FedoraRespin -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
         ELN -> "Fedora-eln-.*" ++ renderdvdboot
         CS n ->
           if cslive
@@ -783,3 +779,6 @@ sudoLog :: String -- ^ command
      -> IO ()
 sudoLog = sudo_
 #endif
+
+reverseSort :: Ord a => [a] -> [a]
+reverseSort = sortBy (comparing Down)
