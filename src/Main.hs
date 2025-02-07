@@ -19,7 +19,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime, TimeZone)
-import qualified Distribution.Fedora.Release as Fedora
+import Distribution.Fedora.Release (getRawhideVersion)
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
 import Network.HTTP.Client.TLS
@@ -185,7 +185,7 @@ main = do
                P.text "See <https://github.com/juhp/dl-fedora/#readme>"
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
-  rawhideVersion <- Fedora.getRawhideVersion
+  rawhideVersion <- getRawhideVersion
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
