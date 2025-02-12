@@ -64,7 +64,7 @@ data FedoraEdition = Cloud
                    | Container
                    | Everything
                    | Server
-                   | Workstation
+                   | Workstation -- made with Kiwi for F43
                    | Budgie  -- first spin: used below
                    | Cinnamon -- going away?
                    | COSMIC -- made with Kiwi
@@ -111,9 +111,6 @@ type URL = String
 
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Budgie .. Xfce]
-
-kiwiSpins :: [FedoraEdition]
-kiwiSpins = [COSMIC, KDEMobile, Miracle]
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
@@ -527,6 +524,11 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                         else showArch arch : rel)
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle)
+
+    kiwiSpins :: [FedoraEdition]
+    kiwiSpins =
+      (if tgtrel == Rawhide then (Workstation :) else id)
+      [COSMIC, KDEMobile, Miracle]
 
     editionType :: FedoraEdition -> String
     editionType Server = if dvdnet then "dvd" else "netinst"
