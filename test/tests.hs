@@ -64,9 +64,10 @@ listEditions n = do
 
 main :: IO ()
 main = do
-  forM_ [40..43] listEditions
-  forM_ [9..10] listEditions
   ghAction <- isJust <$> lookupEnv "GITHUB_ACTIONS"
+  unless ghAction $ do
+    forM_ [40..43] listEditions
+    forM_ [9..10] listEditions
   let cases = tests ghAction
   mapM_ (dlFedora ghAction) cases
   putStrLn $ show (length cases) ++ " tests ran"
