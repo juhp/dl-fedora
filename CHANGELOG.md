@@ -12,7 +12,7 @@
 - respin --local: now correctly lists latest respin (not oldest)
 - bump QEMU mem to 3GB
 - wrap http-directory functions with retry
-- allow "ws" as alias for workstation
+- allow "ws" and "gnome" as aliases for Workstation
 
 ## 1.2.1 (2024-11-01)
 - add MiracleWM and KDE_Mobile Live images

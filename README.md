@@ -54,6 +54,7 @@ eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`
 It also tries to check the iso checksum and its gpg signature.
 
 There are a couple of edition abbreviations:
+- `gnome` is an alias for `workstation`
 - `ws` is short for `workstation` (though it is the default)
 - `sb` short for `silverblue`.
 
