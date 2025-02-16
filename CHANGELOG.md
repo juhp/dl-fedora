@@ -5,8 +5,8 @@
 - KDE spin renamed to KDE Desktop
 - add COSMIC for F42
 - use "c{9,10}s-live" for alt live respins instead of --cs-live-respin
-- support downloading multiple editions/spins or all editions/spins:
-  --all-editions and --all-spins defined per release or respin
+- support downloading multiple or all editions/spins:
+  --all-editions and --all-spins are defined per release or respin
 - handle Kiwi use for different versions
 - rawhide can now be specified by version number (uses fedora-release)
 - respin --local: now correctly lists latest respin (not oldest)
