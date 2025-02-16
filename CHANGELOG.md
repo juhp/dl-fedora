@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3 (2025-02-XX)
+## 1.3 (2025-02-16)
 - F42 Workstation now created with Kiwi
 - KDE spin renamed to KDE Desktop
 - add COSMIC for F42
