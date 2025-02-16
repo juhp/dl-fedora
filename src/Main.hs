@@ -315,8 +315,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                 then getUrlDirectory dlFpo path'
                 else return (url,ls)
       when (null hrefs) $ error' $ primeDir +-+ "is empty"
-      let prefixPat = makeFilePrefix mrelease
-          selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
+      let (prefixPat,selector) = makeFileSelector mrelease
           fileslen = groupSortOn length $ filter selector $ map T.unpack hrefs
           mchecksum = find ((if tgtrel == FedoraRespin then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case fileslen of
@@ -324,7 +323,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         (files:_) -> do
           when (length files > 1) $ mapM_ putStrLn files
           let file = last files
-              prefix = if '*' `elem` prefixPat
+              prefix = if '[' `elem` prefixPat
                        then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
                        else prefixPat
               primeUrl = primeDir +/+ file
@@ -387,17 +386,16 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
 
     getFilePrefix :: String -> IO String
     getFilePrefix showdestdir = do
-      let prefixPat = makeFilePrefix getRelease
-          selector = if '*' `elem` prefixPat then (=~ prefixPat) else (prefixPat `isPrefixOf`)
+      let (prefixPat,selector) = makeFileSelector getRelease
       symlinks <- listDirectory "." >>= filterM pathIsSymbolicLink
       return $
         case find selector (reverseSort symlinks) of
           Nothing ->
-            if '*' `elem` prefixPat
+            if '[' `elem` prefixPat
             then error' $ "no match for " <> prefixPat <> " in " <> showdestdir
             else prefixPat
           Just symlink ->
-            if '*' `elem` prefixPat
+            if '[' `elem` prefixPat
             then (symlink =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
             else prefixPat
 
@@ -503,30 +501,45 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
 
     renderdvdboot = if dvdnet then "dvd1" else "boot"
 
-    makeFilePrefix :: Maybe String -> String
-    makeFilePrefix mrelease =
+    makeFileSelector :: Maybe String -> (String, String -> Bool)
+    makeFileSelector mrelease =
+      let (prefixPat,msuffix) = makeFilePrefixSuffix mrelease
+          selector f =
+            not ("-latest-" `isInfixOf` f) &&
+            case msuffix of
+              Just suffix -> f =~ (prefixPat ++ ".*-" ++ suffix)
+              Nothing ->
+                if '[' `elem` prefixPat
+                then f =~ prefixPat
+                else prefixPat `isPrefixOf` f
+      in (prefixPat, selector)
+
+    makeFilePrefixSuffix :: Maybe String -> (String, Maybe String)
+    makeFilePrefixSuffix mrelease =
       case tgtrel of
-        FedoraRespin -> "F[1-9][0-9]*-" <> liveRespin edition <> "-x86_64" <> "-LIVE"
-        ELN -> "Fedora-eln-.*" ++ renderdvdboot
+        FedoraRespin ->
+          ("F[1-9][0-9]-" <> liveRespin edition <> "-x86_64" <> "-LIVE",
+           Nothing)
+        ELN -> ("Fedora-eln", Just renderdvdboot)
         CS n ->
           if cslive
-          then "CentOS-Stream-Image-" ++ csLive edition ++ "-Live" <.> showArch arch ++ '-' : show n
-          else "CentOS-Stream-" ++ show n ++ "-.*" ++ renderdvdboot
+          then ("CentOS-Stream-Image-" ++ csLive edition ++ "-Live" <.> showArch arch ++ '-' : show n, Nothing)
+          else ("CentOS-Stream-" ++ show n, Just renderdvdboot)
         _ ->
           let showRel r = if last r == '/' then init r else r
               rel = maybeToList (showRel <$> mrelease)
               (midpref,middle) =
                 case edition of
                   -- https://github.com/fedora-iot/iot-distro/issues/1
-                  IoT -> ("", rel ++ [".*" <> showArch arch])
+                  IoT -> ("", rel)
                   Cloud -> ('.' : showArch arch, rel)
                   Container -> ('.' : showArch arch, rel)
                   _ -> ("",
                         if edition `elem` kiwiSpins
                         then rel
                         else showArch arch : rel)
-          in
-            intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle)
+          in (intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle),
+              Nothing)
 
     -- https://pagure.io/pungi-fedora/blob/main/f/fedora.conf#_251 kiwibuild
     kiwiSpins :: [FedoraEdition]

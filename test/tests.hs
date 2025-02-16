@@ -9,7 +9,7 @@ dlFedora ghAction args =
 
 -- FIXME automate me
 branched :: Int
-branched = 41
+branched = 42
 current, previous :: String
 current = show branched
 previous = show (branched - 1)
@@ -21,7 +21,7 @@ tests ghAction =
   ,["-c", "respin"]
   ,["-l", current]
   ,["-l", "rawhide", "-n"]
-  ,["40", "iot", "-n"]
+  ,["41", "iot", "-n"]
   ] ++
   if ghAction then []
   else
@@ -34,6 +34,7 @@ tests ghAction =
     ,["-n", "c10s"]
     ,["-c", "eln"]
     ,["-n", "c9s", "--cs-live-respin"]
+    ,["-n", "c10s", "--cs-live-respin"]
     ]
 
 main :: IO ()
