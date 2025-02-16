@@ -58,6 +58,12 @@ There are a couple of edition abbreviations:
 - `ws` is short for `workstation` (though it is the default)
 - `sb` short for `silverblue`.
 
+Also release aliases:
+- {`8`,`9`,`10`} are aliases for {`c8s`, `c9s`, `c10s`}
+- `{8,9,10}-{live,respin}` are aliases for `{c8s,c9s,c10s}-{live,respin}`
+- currently `11` is an alias for eln
+- the current rawhide version can be used for `rawhide`
+
 ## Usage
 `$ dl-fedora --version`
 

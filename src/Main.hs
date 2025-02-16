@@ -131,9 +131,13 @@ allSpins rawhide current rel =
         EQ -> [COSMIC]
         LT -> [COSMIC, KDEMobile, Miracle]
     FedoraRespin -> delete KDEMobile $ allSpins rawhide current $ Fedora current
+    FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
+    FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS 9 True -> [Cinnamon, KDE, MATE, Xfce] -- FIXME missing MAX, MIN
     CS 10 True -> [KDE] -- FIXME missing MAX, MIN
-    _ -> error' "--all-spins not supported for this release"
+    CS n False -> error' $ "no spins available" ++ if n >= 9 then ": perhaps you want 'c" ++ show n ++ "s-live'?" else ""
+    CS _ _ -> error' "--all-spins not supported"
+    ELN -> error' "--all-spins not supported for this release"
 
 allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
 allEditions rawhide current rel =
@@ -142,7 +146,10 @@ allEditions rawhide current rel =
     Fedora r ->
       [minBound..maxBound] \\ missingEditions r
     FedoraRespin -> Workstation : allSpins rawhide current FedoraRespin
+    FedoraTest -> allEditions rawhide current $ Fedora current -- FIXME use fedora-releases
+    FedoraStage -> allEditions rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS _ True -> Workstation : allSpins rawhide current rel
+    CS n False -> [Workstation]
     _ -> error' "--all-editions not supported for this release"
   where
     missingEditions r =
@@ -205,8 +212,14 @@ readRelease rawhide rel =
     "c8s" -> CS 8 False
     "c9s" -> CS 9 False
     "c10s" -> CS 10 False
+    "9-live" -> CS 9 True
+    "9-respin" -> CS 9 True
     "c9s-live" -> CS 9 True
+    "c9s-respin" -> CS 9 True
+    "10-live" -> CS 10 True
+    "10-respin" -> CS 10 True
     "c10s-live" -> CS 10 True
+    "c10s-respin" -> CS 10 True
     "respin" -> FedoraRespin
     "rawhide" -> Rawhide
     "test" -> FedoraTest

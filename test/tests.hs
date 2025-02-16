@@ -48,20 +48,24 @@ tests ghAction =
     ]
 
 allEditions :: Natural -> [String]
+allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]
+allEditions 10 = ["workstation", "kde", "max", "min"]
 allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","mate","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
   ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42]
 
 listEditions :: Natural -> IO ()
 listEditions n = do
-  cmdN "dl-fedora" ["--list", show n]
-  es <- words <$> cmd "dl-fedora" ["--list", show n]
+  let args = ["--list", show n ++ if n < 11 then "-live" else ""]
+  cmdN "dl-fedora" args
+  es <- sort . words <$> cmd "dl-fedora" args
   let aes = sort $ allEditions n
   unless (es == aes) $
-    error' $ show n +-+ "editions unmatched:\n" +-+ show es ++ "\n" ++ show aes
+    error' $ show n +-+ "editions unmatched:\n" ++ show es ++ "\n" ++ show aes
 
 main :: IO ()
 main = do
   forM_ [40..43] listEditions
+  forM_ [9..10] listEditions
   ghAction <- isJust <$> lookupEnv "GITHUB_ACTIONS"
   let cases = tests ghAction
   mapM_ (dlFedora ghAction) cases
