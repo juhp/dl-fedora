@@ -34,12 +34,12 @@ tests ghAction =
     ,["-n", "c9s", "--dvd"]
     ,["-n", "c10s"]
     ,["-c", "eln"]
-    ,["-n", "c9s", "--cs-live-respin"]
-    ,["-n", "c10s", "--cs-live-respin"]
     ,["-d", "-T", "-n"] ++ allEditions 40
     ,["-d", "-T", "-n"] ++ allEditions 41
     ,["-d", "-T", "-n"] ++ allEditions 42
     ,["-d", "-T", "-n"] ++ allEditions 43
+    ,["-n", "c9s-live"]
+    ,["-n", "c10s-live"]
     ]
 
 allEditions :: Natural -> [String]

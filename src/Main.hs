@@ -162,7 +162,7 @@ data Release = Fedora Natural
              | FedoraTest
              | FedoraStage
              | ELN
-             | CS Natural
+             | CS Natural Bool -- alt live respin
   deriving Eq
 
 readRelease :: Natural -> String -> Release
@@ -172,7 +172,7 @@ readRelease rawhide rel =
     n@(_:_) | all isDigit n ->
               let v = read n in
                 case compare v 11 of
-                  LT -> CS v
+                  LT -> CS v False
                   EQ -> ELN
                   GT ->
                     case compare v rawhide of
@@ -180,9 +180,11 @@ readRelease rawhide rel =
                       EQ -> Rawhide
                       GT -> error' $ "Current rawhide is" +-+ show rawhide
     -- FIXME hardcoding
-    "c8s" -> CS 8
-    "c9s" -> CS 9
-    "c10s" -> CS 10
+    "c8s" -> CS 8 False
+    "c9s" -> CS 9 False
+    "c10s" -> CS 10 False
+    "c9s-live" -> CS 9 True
+    "c10s-live" -> CS 10 True
     "respin" -> FedoraRespin
     "rawhide" -> Rawhide
     "test" -> FedoraTest
@@ -197,7 +199,7 @@ main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s"]),
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s", "c9s-live"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
                P.text "",
                P.text "See <https://github.com/juhp/dl-fedora/#readme>"
@@ -218,7 +220,6 @@ main = do
     <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
     <*> switchLongWith "dvd" "Download dvd iso instead of boot netinst (for Server, eln, centos)"
-    <*> switchLongWith "cs-live-respin" "Centos Stream Alternative Live image"
     <*> optional (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
                   flagLongWith' CSTest "cs-test" "Use centos-stream test compose" <|>
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
@@ -245,9 +246,9 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> Bool -> Maybe CentosChannel -> Arch -> Release
+        -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release
         -> RequestEditions -> IO ()
-program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchannel arch tgtrel reqeditions = do
+program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -259,26 +260,31 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
           _ ->
             case tgtrel of
               ELN -> odcsFpo
-              CS n | n >= 9 -> if isJust mchannel
+              CS n _ | n >= 9 -> if isJust mchannel
                                then csComposes
                                else csMirror
-              CS 8 -> csComposes
+              CS 8 _ -> csComposes
               _ -> downloadFpo
   showdestdir <- setDownloadDir dryrun "iso"
   when debug $ print showdestdir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
-  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet cslive mchannel arch tgtrel) $
+  unless (reqeditions == Editions []) $
+    case tgtrel of
+      ELN -> error' "cannot specify edition for eln"
+      CS _ False -> error' "cannot specify edition for centos-stream"
+      _ -> return ()
+  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel) $
     case reqeditions of
       AllEditions -> allFedoraEditions tgtrel
       Editions editions ->
         if null editions || mode == List then [Workstation] else editions
 
 runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> Bool -> Maybe CentosChannel -> Arch -> Release
+        -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release
         -> FedoraEdition -> IO ()
-runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet cslive mchannel arch tgtrel edition =
+runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel edition =
   case mode of
     Check -> do
       (fileurl, filenamePrefix, _prime, _mchecksum, done) <- findURL True
@@ -329,7 +335,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         case tgtrel of
           -- "koji" -> getUrlDirectory kojiPkgs path'
           ELN -> getUrlDirectory odcsFpo path'
-          CS n ->
+          CS n _ ->
             if n < 9 || isJust mchannel
             then getUrlDirectory odcsStream path'
             else getUrlDirectory csMirror path'
@@ -433,7 +439,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         Rawhide -> Just "Rawhide"
         FedoraRespin -> Nothing
         ELN -> Nothing
-        CS _ -> Nothing
+        CS _ _ -> Nothing
         Fedora rel -> Just $ show rel
         _ -> error' "release target is unsupported with --dryrun"
 
@@ -469,16 +475,17 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         FedoraTest -> testRelease subdir
         FedoraStage -> stageRelease subdir
         ELN -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-        CS 8 ->
+        CS 8 False ->
           return ("stream-8" +/+ showChannel (fromMaybe CSProduction mchannel) +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-        CS n -> return $
-                case mchannel of
-                  Nothing ->
-                    if cslive
-                    then ("SIGs" +/+ show n ++ "-stream/altimages/images/live" +/+ showArch arch, Nothing)
-                    else (show n ++ "-stream" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
-                  Just channel ->
-                    ((if n == 9 then id else (("stream-" ++ show n) +/+)) $ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+        CS n cslive ->
+          return $
+          case mchannel of
+            Nothing ->
+              if cslive
+              then ("SIGs" +/+ show n ++ "-stream/altimages/images/live" +/+ showArch arch, Nothing)
+              else (show n ++ "-stream" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
+            Just channel ->
+              ((if n == 9 then id else (("stream-" ++ show n) +/+)) $ showChannel channel +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
         Fedora n ->
           if edition == IoT
           then return ("alt/iot" +/+ show n +/+ subdir, Nothing)
@@ -548,7 +555,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
           ("F[1-9][0-9]-" <> liveRespin edition <> "-x86_64" <> "-LIVE",
            Nothing)
         ELN -> ("Fedora-eln", Just renderdvdboot)
-        CS n ->
+        CS n cslive ->
           if cslive
           then ("CentOS-Stream-Image-" ++ csLive edition ++ "-Live" <.> showArch arch ++ '-' : show n, Nothing)
           else ("CentOS-Stream-" ++ show n, Just renderdvdboot)
@@ -816,7 +823,7 @@ curl debug args = do
   cmdBool "curl" $ opts ++ args
 
 isCentosStream :: Release -> Bool
-isCentosStream (CS _) = True
+isCentosStream (CS _ _) = True
 isCentosStream _ = False
 
 -- FIXME support other editions: MAX, MIN
