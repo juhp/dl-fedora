@@ -194,8 +194,8 @@ data Release = Fedora Natural
              | CS Natural Bool -- alt live respin
   deriving Eq
 
-readRelease :: Natural -> String -> Release
-readRelease rawhide rel =
+readRelease :: Natural -> Natural -> String -> Release
+readRelease rawhide current rel =
   case lower rel of
     'f': n@(_:_) | all isDigit n -> Fedora (read n)
     n@(_:_) | all isDigit n ->
@@ -208,6 +208,8 @@ readRelease rawhide rel =
                       LT -> Fedora v
                       EQ -> Rawhide
                       GT -> error' $ "Current rawhide is" +-+ show rawhide
+    "current" -> Fedora current
+    "previous" -> Fedora (current -1)
     -- FIXME hardcoding
     "c8s" -> CS 8 False
     "c9s" -> CS 9 False
@@ -241,6 +243,7 @@ main = do
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
   rawhideVersion <- getRawhideVersion
+  currentRelease <- getCurrentFedoraVersion
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     program rawhideVersion
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
@@ -260,7 +263,7 @@ main = do
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
     <*> optional (strOptionLongWith "alt-cs-extra-edition" "('MAX'|'MIN')" "Centos Stream Alternative Live Spin editions (MAX,MIN)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
-    <*> (readRelease rawhideVersion <$> strArg "RELEASE")
+    <*> (readRelease rawhideVersion currentRelease <$> strArg "RELEASE")
     <*> (flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
          flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
          Editions <$> many (argumentWith auto "EDITION..."))

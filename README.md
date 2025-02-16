@@ -54,15 +54,16 @@ eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`
 It also tries to check the iso checksum and its gpg signature.
 
 There are a couple of edition abbreviations:
-- `gnome` is an alias for `workstation`
-- `ws` is short for `workstation` (though it is the default)
-- `sb` short for `silverblue`.
+- `ws` and `gnome` are aliases for `workstation` (default edition)
+- `sb` is short for `silverblue`.
 
 Also release aliases:
 - {`8`,`9`,`10`} are aliases for {`c8s`, `c9s`, `c10s`}
 - `{8,9,10}-{live,respin}` are aliases for `{c8s,c9s,c10s}-{live,respin}`
 - currently `11` is an alias for eln
 - the current rawhide version can be used for `rawhide`
+- `current` is an alias for the latest current stable Fedora release
+- `previous` is an alias for the previous current stable Fedora release
 
 ## Usage
 `$ dl-fedora --version`
@@ -75,12 +76,12 @@ Also release aliases:
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
-                 [--debug] [-T|--no-http-timeout] 
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
-                 [-n|--dry-run] [-r|--run] 
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
-                 [--dvd] [--cs-devel | --cs-test | --cs-production] 
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
+                 [--debug] [-T|--no-http-timeout]
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
+                 [-n|--dry-run] [-r|--run]
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
+                 [--dvd] [--cs-devel | --cs-test | --cs-production]
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-spins | --all-editions | [EDITION...]]
 

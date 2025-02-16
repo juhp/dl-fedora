@@ -13,6 +13,7 @@
 - bump QEMU mem to 3GB
 - wrap http-directory functions with retry
 - allow "ws" and "gnome" as aliases for Workstation
+- add release aliases 'current' and 'previous'
 - aliases {9,10}-live
 - --alt-cs-extra-edition to allow MAX/MIN Live images
 
