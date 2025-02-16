@@ -69,13 +69,13 @@ There are a couple of edition abbreviations:
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
-                 [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
-                 [-n|--dry-run] [-r|--run]
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
-                 [--dvd] [--cs-devel | --cs-test | --cs-production]
-                 [-a|--arch ARCH] RELEASE
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
+                 [--debug] [-T|--no-http-timeout] 
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
+                 [-n|--dry-run] [-r|--run] 
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
+                 [--dvd] [--cs-devel | --cs-test | --cs-production] 
+                 [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-spins | --all-editions | [EDITION...]]
 
   Tool for downloading Fedora iso file images.
@@ -113,6 +113,9 @@ Available options:
   --cs-test                Use centos-stream test compose
   --cs-production          Use centos-stream production compose (default is
                            mirror.stream.centos.org)
+  --alt-cs-extra-edition ('MAX'|'MIN')
+                           Centos Stream Alternative Live Spin editions
+                           (MAX,MIN)
   -a,--arch ARCH           Specify arch [default: x86_64]
   --all-spins              Get all Fedora Spins
   --all-editions           Get all Fedora editions

@@ -13,6 +13,7 @@
 - bump QEMU mem to 3GB
 - wrap http-directory functions with retry
 - allow "ws" and "gnome" as aliases for Workstation
+- --alt-cs-extra-edition to allow MAX/MIN Live images
 
 ## 1.2.1 (2024-11-01)
 - add MiracleWM and KDE_Mobile Live images

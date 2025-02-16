@@ -245,6 +245,7 @@ main = do
     <*> optional (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
                   flagLongWith' CSTest "cs-test" "Use centos-stream test compose" <|>
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
+    <*> optional (strOptionLongWith "alt-cs-extra-edition" "('MAX'|'MIN')" "Centos Stream Alternative Live Spin editions (MAX,MIN)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
     <*> (readRelease rawhideVersion <$> strArg "RELEASE")
     <*> (flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
@@ -269,9 +270,9 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release
-        -> RequestEditions -> IO ()
-program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions = do
+        -> Mirror -> Bool -> Maybe CentosChannel -> Maybe String -> Arch
+        -> Release -> RequestEditions -> IO ()
+program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -298,8 +299,15 @@ program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchan
       ELN -> error' "cannot specify edition for eln"
       CS _ False -> error' "cannot specify edition for centos-stream"
       _ -> return ()
+  when (isJust mcsedition) $
+    case tgtrel of
+      CS n True | n >= 9 ->
+                  case reqeditions of
+                    Editions [] -> return ()
+                    _ -> error' "combining extra edition unsupported"
+      _ -> error' "--alt-cs-extra-edition is only for CS Alt Live spins"
   current <- getCurrentFedoraVersion
-  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions) $
+  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions) $
     if mode == List
     then [Workstation]
     else
@@ -309,10 +317,11 @@ program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchan
         Editions editions ->
           if null editions then [Workstation] else editions
 
-runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release
-        -> RequestEditions -> FedoraEdition -> IO ()
-runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions edition =
+runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool
+                  -> Mode -> Bool -> Bool -> Mirror -> Bool
+                  -> Maybe CentosChannel -> Maybe String -> Arch -> Release
+                  -> RequestEditions -> FedoraEdition -> IO ()
+runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions edition =
   case mode of
     Check -> do
       (fileurl, filenamePrefix, _prime, _mchecksum, done) <- findURL True
@@ -347,7 +356,11 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
             case reqeditions of
               AllSpins -> allSpins rawhide current tgtrel
               _ -> allEditions rawhide current tgtrel
-      putStrLn $ unwords . sort . map lowerEdition $ editions
+          extras =
+            case tgtrel of
+              CS _ True -> ["max","min"]
+              _ -> []
+      putStrLn $ unwords $ sort (map lowerEdition editions) ++ extras
     Download removeold -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL False
       let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
@@ -590,7 +603,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         ELN -> ("Fedora-eln", Just renderdvdboot)
         CS n cslive ->
           if cslive
-          then ("CentOS-Stream-Image-" ++ csLive edition ++ "-Live" <.> showArch arch ++ '-' : show n, Nothing)
+          then ("CentOS-Stream-Image-" ++ maybe (csLive edition) upper mcsedition ++ "-Live" <.> showArch arch ++ '-' : show n, Nothing)
           else ("CentOS-Stream-" ++ show n, Just renderdvdboot)
         _ ->
           let showRel r = if last r == '/' then init r else r
@@ -862,7 +875,6 @@ isCentosStream :: Release -> Bool
 isCentosStream (CS _ _) = True
 isCentosStream _ = False
 
--- FIXME support MAX, MIN
 csLive :: FedoraEdition -> String
 csLive Workstation = "GNOME"
 csLive Cinnamon = "CINNAMON"
