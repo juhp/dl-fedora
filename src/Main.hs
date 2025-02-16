@@ -86,13 +86,17 @@ data FedoraEdition = Cloud
                    | IoT
  deriving (Show, Enum, Bounded, Eq)
 
-showEdition :: FedoraEdition -> String
-showEdition KDE = "KDE-Desktop"
-showEdition KDEMobile = "KDE-Mobile"
-showEdition MATE = "MATE_Compiz"
-showEdition Miracle = "MiracleWM"
-showEdition I3 = "i3"
-showEdition e = show e
+showEdition :: Release -> FedoraEdition -> String
+showEdition rel KDE =
+  case rel of
+    Rawhide -> "KDE-Desktop"
+    Fedora r | r >= 42 -> "KDE-Desktop"
+    _ -> "KDE"
+showEdition _ KDEMobile = "KDE-Mobile"
+showEdition _ MATE = "MATE_Compiz"
+showEdition _ Miracle = "MiracleWM"
+showEdition _ I3 = "i3"
+showEdition _ e = show e
 
 lowerEdition :: FedoraEdition -> String
 lowerEdition = lower . show
@@ -434,7 +438,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
       let subdir =
             if edition `elem` fedoraSpins
             then joinPath ["Spins", showArch arch, "iso"]
-            else joinPath [showEdition edition, showArch arch, editionMedia edition]
+            else joinPath [showEdition tgtrel edition, showArch arch, editionMedia edition]
       case tgtrel of
         FedoraRespin -> return ("alt/live-respins", Nothing)
         Rawhide -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
@@ -537,7 +541,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                         if edition `elem` kiwiSpins
                         then rel
                         else showArch arch : rel)
-          in (intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle),
+          in (intercalate "-" (["Fedora", showEdition tgtrel edition, editionType edition ++ midpref] ++ middle),
               Nothing)
 
     -- https://pagure.io/pungi-fedora/blob/main/f/fedora.conf#_251 kiwibuild
@@ -718,7 +722,7 @@ editionMedia Container = "images"
 editionMedia _ = "iso"
 
 liveRespin :: FedoraEdition -> String
-liveRespin = take 4 . upper . showEdition
+liveRespin = take 4 . upper . showEdition FedoraRespin
 
 bootImage :: Bool -> FilePath -> String -> IO ()
 bootImage dryrun img showdir = do
@@ -797,7 +801,7 @@ csLive Cinnamon = "CINNAMON"
 csLive KDE = "KDE"
 csLive MATE = "MATE"
 csLive Xfce = "XFCE"
-csLive ed = error' $ "unsupported edition:" +-+ showEdition ed
+csLive ed = error' $ "unsupported edition:" +-+ showEdition FedoraRespin ed
 
 #if !MIN_VERSION_simple_cmd(0,2,7)
 sudoLog :: String -- ^ command
