@@ -559,8 +559,8 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
                 case edition of
                   -- https://github.com/fedora-iot/iot-distro/issues/1
                   IoT -> ("", rel)
-                  Cloud -> ('.' : showArch arch, rel)
-                  Container -> ('.' : showArch arch, rel)
+                  Cloud | tgtrel == Fedora 40 -> ('.' : showArch arch, rel)
+                  Container | tgtrel == Fedora 40 -> ('.' : showArch arch, rel)
                   _ -> ("",
                         if edition `elem` kiwiSpins
                         then rel
@@ -574,8 +574,10 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
       -- https://fedoraproject.org/wiki/Changes/EROFSforLiveMedia
       (if fedoraVerOrLater 42 tgtrel
        then [Budgie, COSMIC, KDE, LXQt, Workstation, Xfce]
+       else []) ++
+      (if fedoraVerOrLater 41 tgtrel
+       then [Cloud, Container, KDEMobile, Miracle]
        else [])
-      ++ [KDEMobile, Miracle] -- Fedora 41
       where
         fedoraVerOrLater :: Natural -> Release -> Bool
         fedoraVerOrLater _ Rawhide = True
