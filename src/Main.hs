@@ -21,7 +21,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime, TimeZone)
-import Distribution.Fedora.Release (getRawhideVersion)
+import Distribution.Fedora.Release (getRawhideVersion, getCurrentFedoraVersion)
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
 import Network.HTTP.Client.TLS
@@ -119,18 +119,37 @@ type URL = String
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Budgie .. Xfce]
 
-allFedoraEditions :: Release -> [FedoraEdition]
-allFedoraEditions rel =
+allSpins :: Natural -> Natural -> Release -> [FedoraEdition]
+allSpins rawhide current rel =
   case rel of
+    Rawhide -> allSpins rawhide current $ Fedora rawhide
+    Fedora r ->
+      fedoraSpins \\ case compare r 41 of
+        GT -> []
+        EQ -> [COSMIC]
+        LT -> [COSMIC, KDEMobile, Miracle]
+    FedoraRespin -> allSpins rawhide current $ Fedora current
+    CS _ True -> [Workstation, Cinnamon, KDE, MATE, Xfce]
+    _ -> error' "--all-spins not supported for this release"
+
+allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
+allEditions rawhide current rel =
+  case rel of
+    Rawhide -> allEditions rawhide current $ Fedora rawhide
     Fedora r ->
       [minBound..maxBound] \\ missingEditions r
-    _ -> [minBound..maxBound]
+    FedoraRespin -> allEditions rawhide current $ Fedora current
+    CS _ True -> allSpins rawhide current rel
+    _ -> error' $ "--all-editions not supported for this release"
   where
-    missingEditions 42 = [IoT]
-    missingEditions 41 = [COSMIC]
-    missingEditions 40 = [COSMIC, KDEMobile, Miracle]
+    missingEditions r =
+      case compare r 41 of
+        GT -> [IoT]
+        EQ -> [COSMIC]
+        LT -> [COSMIC, KDEMobile, Miracle]
 
-data RequestEditions = Editions [FedoraEdition] | AllEditions
+data RequestEditions = Editions [FedoraEdition] | AllSpins | AllEditions
+  deriving Eq
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
@@ -207,7 +226,7 @@ main = do
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
   rawhideVersion <- getRawhideVersion
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
-    program
+    program rawhideVersion
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> checksumOpts
     <*> switchLongWith "debug" "Debug output"
@@ -225,7 +244,8 @@ main = do
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
     <*> (readRelease rawhideVersion <$> strArg "RELEASE")
-    <*> (flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
+    <*> (flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
+         flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
          Editions <$> many (argumentWith auto "EDITION..."))
   where
     mirrorOpt :: Parser Mirror
@@ -245,10 +265,10 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
+program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
         -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release
         -> RequestEditions -> IO ()
-program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions = do
+program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -270,6 +290,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
+  current <- getCurrentFedoraVersion
   unless (reqeditions == Editions []) $
     case tgtrel of
       ELN -> error' "cannot specify edition for eln"
@@ -277,7 +298,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel arch
       _ -> return ()
   mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel) $
     case reqeditions of
-      AllEditions -> allFedoraEditions tgtrel
+      AllEditions -> allEditions rawhide current tgtrel
+      AllSpins -> allSpins rawhide current tgtrel
       Editions editions ->
         if null editions || mode == List then [Workstation] else editions
 
@@ -312,9 +334,10 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         putStrLn $ "Local:" +-+ target
         when run $
           bootImage dryrun target showdestdir
-    List ->
-      -- FIXME only list/check for editions for release
-      putStrLn $ (unwords . sort . map lowerEdition) [(minBound :: FedoraEdition)..maxBound]
+    List -> do
+      rawhide <- getRawhideVersion
+      current <- getCurrentFedoraVersion
+      putStrLn $ (unwords . sort . map lowerEdition) $ allEditions rawhide current tgtrel
     Download removeold -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL False
       let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl

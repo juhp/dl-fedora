@@ -1,3 +1,5 @@
+import Control.Monad (forM_, unless)
+import Data.List (sort)
 import Data.Maybe
 import Numeric.Natural (Natural)
 import System.Environment (lookupEnv)
@@ -34,20 +36,29 @@ tests ghAction =
     ,["-n", "c9s", "--dvd"]
     ,["-n", "c10s"]
     ,["-c", "eln"]
-    ,["-d", "-T", "-n"] ++ allEditions 40
-    ,["-d", "-T", "-n"] ++ allEditions 41
-    ,["-d", "-T", "-n"] ++ allEditions 42
-    ,["-d", "-T", "-n"] ++ allEditions 43
     ,["-n", "c9s-live"]
     ,["-n", "c10s-live"]
+    ,["-d", "-T", "-n", "40", "--all-editions"]
+    ,["-d", "-T", "-n", "41", "--all-editions"]
+    ,["-d", "-T", "-n", "42", "--all-editions"]
+    ,["-d", "-T", "-n", "43", "--all-editions"]
     ]
 
 allEditions :: Natural -> [String]
-allEditions rel = show rel : ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","mate","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
+allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","mate","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
   ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42]
+
+listEditions :: Natural -> IO ()
+listEditions n = do
+  cmdN "dl-fedora" ["--list", show n]
+  es <- words <$> cmd "dl-fedora" ["--list", show n]
+  let aes = sort $ allEditions n
+  unless (es == aes) $
+    error' $ show n +-+ "editions unmatched:\n" +-+ show es ++ "\n" ++ show aes
 
 main :: IO ()
 main = do
+  forM_ [40..43] listEditions
   ghAction <- isJust <$> lookupEnv "GITHUB_ACTIONS"
   let cases = tests ghAction
   mapM_ (dlFedora ghAction) cases
