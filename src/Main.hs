@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 
+-- see https://pagure.io/pungi-fedora/
+
 #if !MIN_VERSION_base(4,13,0)
 import Control.Applicative ((<|>)
 #if !MIN_VERSION_base(4,8,0)
@@ -64,17 +66,17 @@ data FedoraEdition = Cloud
                    | Container
                    | Everything
                    | Server
-                   | Workstation -- made with Kiwi for F43
+                   | Workstation
                    | Budgie  -- first spin: used below
-                   | Cinnamon -- going away?
-                   | COSMIC -- made with Kiwi
+                   | Cinnamon
+                   | COSMIC
                    | I3
                    | KDE
-                   | KDEMobile -- made with Kiwi
+                   | KDEMobile
                    | LXDE
                    | LXQt
                    | MATE
-                   | Miracle -- made with Kiwi
+                   | Miracle
                    | SoaS
                    | Sway
                    | Xfce  -- last spin: used below
@@ -526,10 +528,19 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
           in
             intercalate "-" (["Fedora", showEdition edition, editionType edition ++ midpref] ++ middle)
 
+    -- https://pagure.io/pungi-fedora/blob/main/f/fedora.conf#_251 kiwibuild
     kiwiSpins :: [FedoraEdition]
     kiwiSpins =
-      (if tgtrel == Rawhide then (Workstation :) else id)
-      [COSMIC, KDEMobile, Miracle]
+      -- https://fedoraproject.org/wiki/Changes/EROFSforLiveMedia
+      (if fedoraVerOrLater 42 tgtrel
+       then [Budgie, COSMIC, KDE, LXQt, Workstation, Xfce]
+       else [])
+      ++ [KDEMobile, Miracle] -- Fedora 41
+      where
+        fedoraVerOrLater :: Natural -> Release -> Bool
+        fedoraVerOrLater _ Rawhide = True
+        fedoraVerOrLater n (Fedora m) = m >= n
+        fedoraVerOrLater _ _ = False
 
     editionType :: FedoraEdition -> String
     editionType Server = if dvdnet then "dvd" else "netinst"
