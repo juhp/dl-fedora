@@ -86,6 +86,7 @@ data FedoraEdition = Cloud
  deriving (Show, Enum, Bounded, Eq)
 
 showEdition :: FedoraEdition -> String
+showEdition KDE = "KDE-Desktop"
 showEdition KDEMobile = "KDE-Mobile"
 showEdition MATE = "MATE_Compiz"
 showEdition Miracle = "MiracleWM"
