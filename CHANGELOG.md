@@ -1,11 +1,18 @@
 # Changelog
 
 ## 1.3 (2025-02-XX)
+- F42 Workstation now created with Kiwi
+- KDE spin renamed to KDE Desktop
 - add COSMIC for F42
+- use "c{9,10}s-live" for alt live respins instead of --cs-live-respin
+- support downloading multiple editions/spins or all editions/spins:
+  --all-editions and --all-spins defined per release or respin
+- handle Kiwi use for different versions
 - rawhide can now be specified by version number (uses fedora-release)
 - respin --local: now correctly lists latest respin (not oldest)
 - bump QEMU mem to 3GB
-- remove head use for fileslen
+- wrap http-directory functions with retry
+- allow "ws" as alias for workstation
 
 ## 1.2.1 (2024-11-01)
 - add MiracleWM and KDE_Mobile Live images

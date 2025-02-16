@@ -16,6 +16,10 @@ Usage examples:
 
 `dl-fedora respin kde` : downloads the latest KDE Live respin
 
+`dl-fedora 41 --list` : list editions for version
+
+`dl-fedora 42 kde workstation` : download both KDE and Workstation editions
+
 `dl-fedora 41 server --arch aarch64` : will download the Server iso for armv8
 
 `dl-fedora --run 42` : will download Fedora Workstation and boot the Live image with qemu-kvm.
@@ -27,7 +31,7 @@ available.
 It can be combined with `--run` to quickly run the latest local image,
 without a newer download.
 
-`dl-fedora c10s` : downloads a Centos Stream 9 net installer.
+`dl-fedora c10s` : downloads a Centos Stream net installer.
 
 By default dl-fedora downloads to `~/Downloads/`
 (correctly the XDG user "DOWNLOADS" directory),
@@ -49,11 +53,15 @@ eg for rawhide it might be `"Fedora-Workstation-Live-x86_64-Rawhide-latest.iso"`
 
 It also tries to check the iso checksum and its gpg signature.
 
+There are a couple of edition abbreviations:
+- `ws` is short for `workstation` (though it is the default)
+- `sb` short for `silverblue`.
+
 ## Usage
 `$ dl-fedora --version`
 
 ```
-1.2.2
+1.3
 ```
 `$ dl-fedora --help`
 
@@ -65,12 +73,12 @@ Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
                  [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
                  [-n|--dry-run] [-r|--run]
                  [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
-                 [--dvd] [--cs-live-respin]
-                 [--cs-devel | --cs-test | --cs-production] [-a|--arch ARCH]
-                 RELEASE [EDITION]
+                 [--dvd] [--cs-devel | --cs-test | --cs-production]
+                 [-a|--arch ARCH] RELEASE
+                 [--all-spins | --all-editions | [EDITION...]]
 
   Tool for downloading Fedora iso file images.
-  RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s
+  RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s, c9s-live
   EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,
              cosmic,i3,kde,kdemobile,lxde,lxqt,mate,miracle,soas,sway,xfce,
              silverblue,kinoite,onyx,sericea,iot} [default: workstation]
@@ -100,12 +108,13 @@ Available options:
                            https://download.fedoraproject.org/pub]
   --dvd                    Download dvd iso instead of boot netinst (for Server,
                            eln, centos)
-  --cs-live-respin         Centos Stream Alternative Live image
   --cs-devel               Use centos-stream development compose
   --cs-test                Use centos-stream test compose
   --cs-production          Use centos-stream production compose (default is
                            mirror.stream.centos.org)
   -a,--arch ARCH           Specify arch [default: x86_64]
+  --all-spins              Get all Fedora Spins
+  --all-editions           Get all Fedora editions
 ```
 
 ## References

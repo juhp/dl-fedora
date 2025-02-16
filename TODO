@@ -1,3 +1,12 @@
+* download to a .hidden file and then rename
+
+- workaround tls-2.0 EMS errors for tls 1.2 mirrors
+
+- catch Ctrl-c and offer to delete download
+  - or --delete-partial (.*.iso.partial)
+
+- update checksum file (eg if unsigned)
+
 - show COMPOSE INFO
 
 - print download.fp.o url
@@ -6,12 +15,8 @@
 - print mirror url when fails
 - download Container from koji
 
-- --list all latest images
-
 - warn if dir hasn't var_run_t permission
-- download to a .hidden file and then rename
 - coreos Live
-- Release type
 - check for curl
 - qemu user options: eg -smp 2
 - restore selinux properties after running

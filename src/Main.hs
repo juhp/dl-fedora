@@ -108,6 +108,7 @@ instance Read FedoraEdition where
     let e = lower s
         editionMap =
           ("sb", Silverblue) :
+          ("ws", Workstation) :
           map (\ ed -> (lowerEdition ed, ed)) [minBound..maxBound]
         res = lookup e editionMap
     case res of
