@@ -11,6 +11,7 @@ import Control.Applicative ((<|>)
 import Data.Semigroup ((<>))
 #endif
 
+import Control.Exception.Extra (retry)
 import Control.Monad.Extra (filterM, unless, unlessM, when, whenJust)
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit)
@@ -330,7 +331,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                        then (file =~ prefixPat) ++ if showArch arch `isInfixOf` prefixPat then "" else showArch arch
                        else prefixPat
               primeUrl = primeDir +/+ file
-          (primeSize,primeTime) <- httpFileSizeTime mgr primeUrl
+          (primeSize,primeTime) <- retry 3 $ httpFileSizeTime mgr primeUrl
           (finalurl, already) <- do
             let localfile = takeFileName primeUrl
             exists <- doesFileExist localfile
@@ -361,9 +362,9 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
             let url = top +/+ path
             when debug $ do
               print url
-              redirs <- httpRedirects mgr $ replace "https:" "http:" url
+              redirs <- retry 3 $ httpRedirects mgr $ replace "https:" "http:" url
               print redirs
-            ls <- httpDirectory mgr url
+            ls <- retry 3 $ httpDirectory mgr url
             return (url, ls)
 
           findMirror primeUrl path file = do
@@ -374,14 +375,14 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                 if mirrorUrl /= downloadFpo
                 then return $ mirrorUrl +/+ path +/+ file
                 else do
-                  redir <- httpRedirect mgr $ mirrorUrl +/+ path +/+ file
+                  redir <- retry 3 $ httpRedirect mgr $ mirrorUrl +/+ path +/+ file
                   case redir of
                     Nothing -> do
                       warning $ mirrorUrl +/+ path +/+ file <> " redirect failed"
                       return primeUrl
                     Just u -> do
                       let url = B.unpack u
-                      exists <- httpExists mgr url
+                      exists <- retry 3 $ httpExists mgr url
                       when debug $ print (url, exists)
                       if exists then return url
                         else return primeUrl
@@ -464,7 +465,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     testRelease mgr subdir = do
       let path = "fedora/linux" +/+ "releases/test"
           url = dlFpo +/+ path
-      rels <- map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
+      rels <- map (T.unpack . noTrailingSlash) <$> retry 3 (httpDirectory mgr url)
       let mrel = if null rels then Nothing else Just (last rels)
       return (path +/+ fromMaybe (error' ("test release not found in " <> url)) mrel +/+ subdir, mrel)
 
@@ -472,7 +473,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     stageRelease mgr subdir = do
       let path = "alt/stage"
           url = dlFpo +/+ path
-      rels <- reverse . map (T.unpack . noTrailingSlash) <$> httpDirectory mgr url
+      rels <- reverse . map (T.unpack . noTrailingSlash) <$> retry 3 (httpDirectory mgr url)
       let mrel = listToMaybe rels
       return (path +/+ fromMaybe (error' ("staged release not found in " <> url)) mrel +/+ subdir, takeWhile (/= '_') <$> mrel)
 
@@ -481,7 +482,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     --   let path = "branched"
     --       url = kojiPkgs +/+ path
     --       prefix = "latest-Fedora-"
-    --   latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> httpDirectory mgr url
+    --   latest <- filter (prefix `isPrefixOf`) . map T.unpack <$> retry 3 $ httpDirectory mgr url
     --   let mlatest = listToMaybe latest
     --   return (path +/+ fromMaybe (error' ("koji branched latest dir not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
 
@@ -490,14 +491,14 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     released mgr rel subdir = do
       let dir = "fedora/linux/releases"
           url = dlFpo +/+ dir
-      exists <- httpExists mgr $ url +/+ rel
+      exists <- retry 3 $ httpExists mgr $ url +/+ rel
       when debug $ print (exists, url +/+ rel)
       if exists
         then return (dir +/+ rel +/+ subdir, Just rel)
         else do
         let dir' = "fedora/linux/development"
             url' = dlFpo +/+ dir'
-        exists' <- httpExists mgr $ url' +/+ rel
+        exists' <- retry 3 $ httpExists mgr $ url' +/+ rel
         if exists'
           then return (dir' +/+ rel +/+ subdir, Just rel)
           else error' "release not found in releases/ or development/"
@@ -588,7 +589,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
           if exists
           then return True
           else do
-            remoteExists <- httpExists mgr url
+            remoteExists <- retry 3 $ httpExists mgr url
             if remoteExists
               then do
               withCurrentDirectory checksumdir $ do
@@ -636,7 +637,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         else do
         filesize <- toInteger . fileSize <$> getFileStatus checksumfile
         when (filesize == 0) $ error' $ checksumfile +-+ "empty!"
-        (primeSize,primeTime) <- httpFileSizeTime mgr url
+        (primeSize,primeTime) <- retry 3 $ httpFileSizeTime mgr url
         when debug $ print (primeSize,primeTime,url)
         ok <- checkLocalFileSize filesize checksumfile primeSize primeTime showdestdir True
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
@@ -693,7 +694,7 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
     mtime <- do
       if url /= primaryUrl prime
         then do
-        (mirrorSize,mirrorTime) <- httpFileSizeTime mgr url
+        (mirrorSize,mirrorTime) <- retry 3 $ httpFileSizeTime mgr url
         unless (mirrorSize == primarySize prime) $
           putStrLn "Warning!  Mirror filesize differs from primary file"
         unless (mirrorTime == primaryTime prime) $
