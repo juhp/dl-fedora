@@ -130,7 +130,8 @@ allSpins rawhide current rel =
         EQ -> [COSMIC]
         LT -> [COSMIC, KDEMobile, Miracle]
     FedoraRespin -> delete KDEMobile $ allSpins rawhide current $ Fedora current
-    CS _ True -> [Cinnamon, KDE, MATE, Xfce]
+    CS 9 True -> [Cinnamon, KDE, MATE, Xfce] -- FIXME missing MAX, MIN
+    CS 10 True -> [KDE] -- FIXME missing MAX, MIN
     _ -> error' "--all-spins not supported for this release"
 
 allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
@@ -860,7 +861,7 @@ isCentosStream :: Release -> Bool
 isCentosStream (CS _ _) = True
 isCentosStream _ = False
 
--- FIXME support other editions: MAX, MIN
+-- FIXME support MAX, MIN
 csLive :: FedoraEdition -> String
 csLive Workstation = "GNOME"
 csLive Cinnamon = "CINNAMON"
