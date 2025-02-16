@@ -10,7 +10,8 @@ import System.Directory (createDirectoryIfMissing,
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath
 
-setDownloadDir :: Bool -> String -> IO FilePath
+setDownloadDir :: Bool -> String
+               -> IO String -- used to present ~/<dir> to user
 setDownloadDir dryrun subdir = do
   home <- getHomeDirectory
   dlDir <- getUserDir "DOWNLOAD"
@@ -34,6 +35,7 @@ setDownloadDir dryrun subdir = do
         createDirectoryIfMissing True dlDir
         setCWD dlDir
   let path = makeRelative home dir
+  -- only used for output to user
   return $ if isRelative path then "~" </> path else path
   where
     setCWD :: FilePath -> IO FilePath
