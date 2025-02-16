@@ -11,8 +11,7 @@ import Control.Applicative ((<|>)
 import Data.Semigroup ((<>))
 #endif
 
-import Control.Monad.Extra
-
+import Control.Monad.Extra (filterM, unless, unlessM, when, whenJust)
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isDigit)
 import Data.List.Extra
