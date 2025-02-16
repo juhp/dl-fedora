@@ -42,6 +42,7 @@ tests ghAction =
     ,["-d", "-T", "-n", "41", "--all-editions"]
     ,["-d", "-T", "-n", "42", "--all-editions"]
     ,["-d", "-T", "-n", "43", "--all-editions"]
+    ,["-d", "-T", "-n", "respin", "--all-editions"]
     ]
 
 allEditions :: Natural -> [String]

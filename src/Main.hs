@@ -21,7 +21,7 @@ import Data.Maybe
 import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Time.LocalTime (getCurrentTimeZone, utcToZonedTime, TimeZone)
-import Distribution.Fedora.Release (getRawhideVersion, getCurrentFedoraVersion)
+import Distribution.Fedora.Release (getCurrentFedoraVersion, getRawhideVersion)
 import Network.HTTP.Client (managerResponseTimeout, newManager,
                             responseTimeoutNone)
 import Network.HTTP.Client.TLS
@@ -128,8 +128,8 @@ allSpins rawhide current rel =
         GT -> []
         EQ -> [COSMIC]
         LT -> [COSMIC, KDEMobile, Miracle]
-    FedoraRespin -> allSpins rawhide current $ Fedora current
-    CS _ True -> [Workstation, Cinnamon, KDE, MATE, Xfce]
+    FedoraRespin -> delete KDEMobile $ allSpins rawhide current $ Fedora current
+    CS _ True -> [Cinnamon, KDE, MATE, Xfce]
     _ -> error' "--all-spins not supported for this release"
 
 allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
@@ -138,9 +138,9 @@ allEditions rawhide current rel =
     Rawhide -> allEditions rawhide current $ Fedora rawhide
     Fedora r ->
       [minBound..maxBound] \\ missingEditions r
-    FedoraRespin -> allEditions rawhide current $ Fedora current
-    CS _ True -> allSpins rawhide current rel
-    _ -> error' $ "--all-editions not supported for this release"
+    FedoraRespin -> Workstation : allSpins rawhide current FedoraRespin
+    CS _ True -> Workstation : allSpins rawhide current rel
+    _ -> error' "--all-editions not supported for this release"
   where
     missingEditions r =
       case compare r 41 of
@@ -290,23 +290,26 @@ program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchan
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
-  current <- getCurrentFedoraVersion
   unless (reqeditions == Editions []) $
     case tgtrel of
       ELN -> error' "cannot specify edition for eln"
       CS _ False -> error' "cannot specify edition for centos-stream"
       _ -> return ()
-  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel) $
-    case reqeditions of
-      AllEditions -> allEditions rawhide current tgtrel
-      AllSpins -> allSpins rawhide current tgtrel
-      Editions editions ->
-        if null editions || mode == List then [Workstation] else editions
+  current <- getCurrentFedoraVersion
+  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions) $
+    if mode == List
+    then [Workstation]
+    else
+      case reqeditions of
+        AllEditions -> allEditions rawhide current tgtrel
+        AllSpins -> allSpins rawhide current tgtrel
+        Editions editions ->
+          if null editions then [Workstation] else editions
 
 runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool -> Mode -> Bool -> Bool
         -> Mirror -> Bool -> Maybe CentosChannel -> Arch -> Release
-        -> FedoraEdition -> IO ()
-runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel edition =
+        -> RequestEditions -> FedoraEdition -> IO ()
+runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel arch tgtrel reqeditions edition =
   case mode of
     Check -> do
       (fileurl, filenamePrefix, _prime, _mchecksum, done) <- findURL True
@@ -337,7 +340,11 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
     List -> do
       rawhide <- getRawhideVersion
       current <- getCurrentFedoraVersion
-      putStrLn $ (unwords . sort . map lowerEdition) $ allEditions rawhide current tgtrel
+      let editions =
+            case reqeditions of
+              AllSpins -> allSpins rawhide current tgtrel
+              _ -> allEditions rawhide current tgtrel
+      putStrLn $ unwords . sort . map lowerEdition $ editions
     Download removeold -> do
       (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL False
       let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
@@ -777,7 +784,10 @@ editionMedia Container = "images"
 editionMedia _ = "iso"
 
 liveRespin :: FedoraEdition -> String
-liveRespin = take 4 . upper . showEdition FedoraRespin
+liveRespin Budgie = "Budgie"
+liveRespin I3 = "i3"
+liveRespin Miracle = "MiracleWM"
+liveRespin e = take 4 . upper . showEdition FedoraRespin $ e
 
 bootImage :: Bool -> FilePath -> String -> IO ()
 bootImage dryrun img showdir = do
