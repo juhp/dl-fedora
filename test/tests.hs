@@ -22,14 +22,14 @@ tests ghAction =
   ,["-c", "respin"]
   ,["-l", current]
   ,["-l", "rawhide", "-n"]
-  ,["41", "iot", "-n"]
+  ,["-n", previous, "kde"]
   ] ++
   if ghAction then []
   else
     [["-c", current, "silverblue"]
-    ,["-n", previous, "kde"]
     ,["-T", "-n", current, "everything"]
     ,["-n", previous, "server", "--dvd", "--arch", "aarch64"]
+    ,["41", "iot", "-n"]
     ,["-n", "c8s"]
     ,["-n", "c9s", "--dvd"]
     ,["-n", "c10s"]
