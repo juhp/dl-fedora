@@ -1,4 +1,5 @@
 import Data.Maybe
+import Numeric.Natural (Natural)
 import System.Environment (lookupEnv)
 import SimpleCmd
 
@@ -35,7 +36,15 @@ tests ghAction =
     ,["-c", "eln"]
     ,["-n", "c9s", "--cs-live-respin"]
     ,["-n", "c10s", "--cs-live-respin"]
+    ,["-d", "-T", "-n"] ++ allEditions 40
+    ,["-d", "-T", "-n"] ++ allEditions 41
+    ,["-d", "-T", "-n"] ++ allEditions 42
+    ,["-d", "-T", "-n"] ++ allEditions 43
     ]
+
+allEditions :: Natural -> [String]
+allEditions rel = show rel : ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","mate","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
+  ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42]
 
 main :: IO ()
 main = do

@@ -119,6 +119,19 @@ type URL = String
 fedoraSpins :: [FedoraEdition]
 fedoraSpins = [Budgie .. Xfce]
 
+allFedoraEditions :: Release -> [FedoraEdition]
+allFedoraEditions rel =
+  case rel of
+    Fedora r ->
+      [minBound..maxBound] \\ missingEditions r
+    _ -> [minBound..maxBound]
+  where
+    missingEditions 42 = [IoT]
+    missingEditions 41 = [COSMIC]
+    missingEditions 40 = [COSMIC, KDEMobile, Miracle]
+
+data RequestEditions = Editions [FedoraEdition] | AllEditions
+
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
   deriving Eq
 
@@ -178,6 +191,7 @@ readRelease rawhide rel =
     _ -> error' "unknown release"
 
 data Mode = Check | Local | List | Download Bool -- replace
+  deriving Eq
 
 main :: IO ()
 main = do
@@ -210,7 +224,8 @@ main = do
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
     <*> (readRelease rawhideVersion <$> strArg "RELEASE")
-    <*> (fromMaybe Workstation <$> optional (argumentWith auto "EDITION"))
+    <*> (flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
+         Editions <$> many (argumentWith auto "EDITION..."))
   where
     mirrorOpt :: Parser Mirror
     mirrorOpt =
@@ -231,8 +246,8 @@ data Primary = Primary {primaryUrl :: String,
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
         -> Mirror -> Bool -> Bool -> Maybe CentosChannel -> Arch -> Release
-        -> FedoraEdition -> IO ()
-program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchannel arch tgtrel edition = do
+        -> RequestEditions -> IO ()
+program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchannel arch tgtrel reqeditions = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -254,10 +269,19 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
+  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet cslive mchannel arch tgtrel) $
+    case reqeditions of
+      AllEditions -> allFedoraEditions tgtrel
+      Editions editions ->
+        if null editions || mode == List then [Workstation] else editions
+
+runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool -> Mode -> Bool -> Bool
+        -> Mirror -> Bool -> Bool -> Maybe CentosChannel -> Arch -> Release
+        -> FedoraEdition -> IO ()
+runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet cslive mchannel arch tgtrel edition =
   case mode of
     Check -> do
-      (fileurl, filenamePrefix, _prime, _mchecksum, done) <-
-        findURL mgr mirrorUrl showdestdir True
+      (fileurl, filenamePrefix, _prime, _mchecksum, done) <- findURL True
       if done
         then do
         putStrLn $ "Local:" +-+ takeFileName fileurl +-+ "is latest"
@@ -274,7 +298,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
               putStrLn $ "Newer:" +-+ takeFileName fileurl
           Nothing -> putStrLn $ "Available:" +-+ takeFileName fileurl
     Local -> do
-      prefix <- getFilePrefix showdestdir
+      prefix <- getFilePrefix
         -- FIXME support non-iso
       let symlink = prefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> "iso"
       mtarget <- derefSymlink symlink
@@ -286,21 +310,20 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
       -- FIXME only list/check for editions for release
       putStrLn $ (unwords . sort . map lowerEdition) [(minBound :: FedoraEdition)..maxBound]
     Download removeold -> do
-      (fileurl, filenamePrefix, prime, mchecksum, done) <-
-        findURL mgr mirrorUrl showdestdir False
+      (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL False
       let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
       downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
-        fileChecksum mgr fileurl mchecksum showdestdir
+        fileChecksum fileurl mchecksum
       unless dryrun $ do
         let localfile = takeFileName fileurl
-        updateSymlink localfile symlink showdestdir removeold
+        updateSymlink localfile symlink removeold
         when run $ bootImage dryrun localfile showdestdir
   where
-    findURL :: Manager -> String -> String -> Bool
+    findURL :: Bool
             -- urlpath, fileprefix, primary, checksum, downloaded
             -> IO (URL, String, Primary, Maybe String, Bool)
-    findURL mgr mirrorUrl showdestdir quiet = do
-      (path,mrelease) <- urlPathMRel mgr
+    findURL quiet = do
+      (path,mrelease) <- urlPathMRel
       let path' = trailingSlash path
       (primeDir,hrefs) <-
         case tgtrel of
@@ -338,7 +361,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
             if exists
               then do
               localsize <- toInteger . fileSize <$> getFileStatus localfile
-              done <- checkLocalFileSize localsize localfile primeSize primeTime showdestdir quiet
+              done <- checkLocalFileSize localsize localfile primeSize primeTime quiet
               if done
                 then return (primeUrl,True)
                 else do
@@ -388,8 +411,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
                         else return primeUrl
             return (url,False)
 
-    getFilePrefix :: String -> IO String
-    getFilePrefix showdestdir = do
+    getFilePrefix :: IO String
+    getFilePrefix = do
       let (prefixPat,selector) = makeFileSelector getRelease
       symlinks <- listDirectory "." >>= filterM pathIsSymbolicLink
       return $
@@ -415,8 +438,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         _ -> error' "release target is unsupported with --dryrun"
 
     checkLocalFileSize :: Integer -> FilePath -> Maybe Integer -> Maybe UTCTime
-                       -> String -> Bool -> IO Bool
-    checkLocalFileSize localsize localfile mprimeSize mprimeTime showdestdir quiet = do
+                       -> Bool -> IO Bool
+    checkLocalFileSize localsize localfile mprimeSize mprimeTime quiet = do
       if Just localsize == mprimeSize
         then do
         unless quiet $ do
@@ -434,8 +457,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         putStrLn $ "File " <> sizepercent <> " downloaded"
         return False
 
-    urlPathMRel :: Manager -> IO (FilePath, Maybe String)
-    urlPathMRel mgr = do
+    urlPathMRel :: IO (FilePath, Maybe String)
+    urlPathMRel = do
       let subdir =
             if edition `elem` fedoraSpins
             then joinPath ["Spins", showArch arch, "iso"]
@@ -443,8 +466,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
       case tgtrel of
         FedoraRespin -> return ("alt/live-respins", Nothing)
         Rawhide -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
-        FedoraTest -> testRelease mgr subdir
-        FedoraStage -> stageRelease mgr subdir
+        FedoraTest -> testRelease subdir
+        FedoraStage -> stageRelease subdir
         ELN -> return ("production/latest-Fedora-ELN/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
         CS 8 ->
           return ("stream-8" +/+ showChannel (fromMaybe CSProduction mchannel) +/+ "latest-CentOS-Stream/compose" +/+ "BaseOS" +/+ showArch arch +/+ "iso", Nothing)
@@ -459,18 +482,18 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         Fedora n ->
           if edition == IoT
           then return ("alt/iot" +/+ show n +/+ subdir, Nothing)
-          else released mgr (show n) subdir
+          else released (show n) subdir
 
-    testRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
-    testRelease mgr subdir = do
+    testRelease :: FilePath -> IO (FilePath, Maybe String)
+    testRelease subdir = do
       let path = "fedora/linux" +/+ "releases/test"
           url = dlFpo +/+ path
       rels <- map (T.unpack . noTrailingSlash) <$> retry 3 (httpDirectory mgr url)
       let mrel = if null rels then Nothing else Just (last rels)
       return (path +/+ fromMaybe (error' ("test release not found in " <> url)) mrel +/+ subdir, mrel)
 
-    stageRelease :: Manager -> FilePath -> IO (FilePath, Maybe String)
-    stageRelease mgr subdir = do
+    stageRelease :: FilePath -> IO (FilePath, Maybe String)
+    stageRelease subdir = do
       let path = "alt/stage"
           url = dlFpo +/+ path
       rels <- reverse . map (T.unpack . noTrailingSlash) <$> retry 3 (httpDirectory mgr url)
@@ -487,8 +510,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     --   return (path +/+ fromMaybe (error' ("koji branched latest dir not found in " <> url)) mlatest +/+ "compose" +/+ subdir, removePrefix prefix <$> mlatest)
 
     -- use https://admin.fedoraproject.org/pkgdb/api/collections ?
-    released :: Manager -> FilePath -> FilePath -> IO (FilePath, Maybe String)
-    released mgr rel subdir = do
+    released :: FilePath -> FilePath -> IO (FilePath, Maybe String)
+    released rel subdir = do
       let dir = "fedora/linux/releases"
           url = dlFpo +/+ dir
       exists <- retry 3 $ httpExists mgr $ url +/+ rel
@@ -571,10 +594,9 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     editionType Container = "Base-Generic"
     editionType _ = "Live"
 
-    fileChecksum :: Manager -> String -> Maybe URL -> String -> Maybe Bool
-                 -> IO ()
-    fileChecksum _ _ Nothing _ _ = return ()
-    fileChecksum mgr imageurl (Just url) showdestdir mneedChecksum =
+    fileChecksum :: String -> Maybe URL -> Maybe Bool -> IO ()
+    fileChecksum _ Nothing _ = return ()
+    fileChecksum imageurl (Just url) mneedChecksum =
       when ((mneedChecksum == Just True && checksum /= NoCheckSum) || (isJust mneedChecksum && checksum == CheckSum)) $ do
         let checksumdir = ".dl-fedora-checksums"
             checksumfilename = takeFileName url
@@ -582,7 +604,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         exists <- do
           dirExists <- doesDirectoryExist checksumdir
           if dirExists
-            then checkChecksumfile mgr url checksumpath showdestdir
+            then checkChecksumfile url checksumpath
             else createDirectory checksumdir >> return False
         putStrLn ""
         haveChksum <-
@@ -630,8 +652,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
               ("grep",[takeFileName imageurl,checksumpath])
               (shasum,["-c","-"])
 
-    checkChecksumfile :: Manager -> URL -> FilePath -> String -> IO Bool
-    checkChecksumfile mgr url checksumfile showdestdir = do
+    checkChecksumfile :: URL -> FilePath -> IO Bool
+    checkChecksumfile url checksumfile = do
       exists <- doesFileExist checksumfile
       if not exists then return False
         else do
@@ -639,7 +661,7 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
         when (filesize == 0) $ error' $ checksumfile +-+ "empty!"
         (primeSize,primeTime) <- retry 3 $ httpFileSizeTime mgr url
         when debug $ print (primeSize,primeTime,url)
-        ok <- checkLocalFileSize filesize checksumfile primeSize primeTime showdestdir True
+        ok <- checkLocalFileSize filesize checksumfile primeSize primeTime True
         unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
         return ok
 
@@ -647,8 +669,8 @@ program gpg checksum debug notimeout mode dryrun run mirror dvdnet cslive mchann
     checkForFedoraKeys n =
       pipeBool ("gpg",["--list-keys"]) ("grep", ["-q", " Fedora .*(" <> show n <> ").*@fedoraproject.org>"])
 
-    updateSymlink :: FilePath -> FilePath -> FilePath -> Bool -> IO ()
-    updateSymlink target symlink showdestdir removeold = do
+    updateSymlink :: FilePath -> FilePath -> Bool -> IO ()
+    updateSymlink target symlink removeold = do
       mmsymlinkTarget <- do
         havefile <- doesFileExist symlink
         if havefile

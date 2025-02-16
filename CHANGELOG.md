@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.2 (2025-02-07)
+## 1.3 (2025-02-XX)
 - add COSMIC for F42
 - rawhide can now be specified by version number (uses fedora-release)
 - respin --local: now correctly lists latest respin (not oldest)
