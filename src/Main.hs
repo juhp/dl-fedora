@@ -111,7 +111,7 @@ instance Read FedoraEdition where
           map (\ ed -> (lowerEdition ed, ed)) [minBound..maxBound]
         res = lookup e editionMap
     case res of
-      Nothing -> error' "unknown edition" >> RP.pfail
+      Nothing -> error' ("unknown edition: " ++ show s) >> RP.pfail
       Just ed -> RP.lift (R.string e) >> return ed
 
 type URL = String
