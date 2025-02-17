@@ -42,8 +42,8 @@ tests ghAction =
     ,["-d", "-T", "-n", "41", "--all-editions"]
     ,["-d", "-T", "-n", "42", "--all-editions"]
     ,["-d", "-T", "-n", "43", "--all-editions"]
-    ,["-d", "-T", "-n", "respin", "--all-editions"]
-    ,["-T", "-n", "c9s-live", "--all-editions"]
+    ,["-d", "-T", "-n", "respin", "--all-spins"]
+    ,["-T", "-n", "c9s-live", "--all-desktops"]
     ,["-T", "-n", "c10s-live", "--all-editions"]
     ]
 

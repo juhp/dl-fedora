@@ -125,40 +125,39 @@ allSpins :: Natural -> Natural -> Release -> [FedoraEdition]
 allSpins rawhide current rel =
   case rel of
     Rawhide -> allSpins rawhide current $ Fedora rawhide
-    Fedora r ->
-      fedoraSpins \\ case compare r 41 of
-        GT -> []
-        EQ -> [COSMIC]
-        LT -> [COSMIC, KDEMobile, Miracle]
+    Fedora r -> fedoraSpins \\ missingEditions r
     FedoraRespin -> delete KDEMobile $ allSpins rawhide current $ Fedora current
     FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS 9 True -> [Cinnamon, KDE, MATE, Xfce] -- FIXME missing MAX, MIN
     CS 10 True -> [KDE] -- FIXME missing MAX, MIN
-    CS n False -> error' $ "no spins available" ++ if n >= 9 then ": perhaps you want 'c" ++ show n ++ "s-live'?" else ""
-    CS _ _ -> error' "--all-spins not supported"
-    ELN -> error' "--all-spins not supported for this release"
+    CS _ False -> []
+    CS _ _ -> []
+    ELN -> []
 
 allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
 allEditions rawhide current rel =
   case rel of
     Rawhide -> allEditions rawhide current $ Fedora rawhide
-    Fedora r ->
-      [minBound..maxBound] \\ missingEditions r
+    Fedora r -> [minBound..maxBound] \\ missingEditions r
     FedoraRespin -> Workstation : allSpins rawhide current FedoraRespin
     FedoraTest -> allEditions rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allEditions rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS _ True -> Workstation : allSpins rawhide current rel
     CS _ False -> [Workstation]
     _ -> error' "--all-editions not supported for this release"
-  where
-    missingEditions r =
-      case compare r 41 of
-        GT -> [IoT]
-        EQ -> [COSMIC]
-        LT -> [COSMIC, KDEMobile, Miracle]
 
-data RequestEditions = Editions [FedoraEdition] | AllSpins | AllEditions
+missingEditions :: Natural -> [FedoraEdition]
+missingEditions r =
+  case compare r 41 of
+    GT -> [IoT]
+    EQ -> [COSMIC]
+    LT -> [COSMIC, KDEMobile, Miracle]
+
+data RequestEditions = Editions [FedoraEdition]
+                     | AllDesktops
+                     | AllSpins
+                     | AllEditions
   deriving Eq
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
@@ -264,7 +263,8 @@ main = do
     <*> optional (strOptionLongWith "alt-cs-extra-edition" "('MAX'|'MIN')" "Centos Stream Alternative Live Spin editions (MAX,MIN)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
     <*> (readRelease rawhideVersion currentRelease <$> strArg "RELEASE")
-    <*> (flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
+    <*> (flagLongWith' AllDesktops "all-desktops" "Get all Fedora desktops" <|>
+         flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
          flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
          Editions <$> many (argumentWith auto "EDITION..."))
   where
@@ -313,7 +313,8 @@ program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchan
   unless (reqeditions == Editions []) $
     case tgtrel of
       ELN -> error' "cannot specify edition for eln"
-      CS _ False -> error' "cannot specify edition for centos-stream"
+      CS n False -> error' $ "cannot specify edition for centos-stream" ++
+                    if n >= 9 then ": perhaps you want 'c" ++ show n ++ "s-live'?" else ""
       _ -> return ()
   when (isJust mcsedition) $
     case tgtrel of
@@ -328,6 +329,7 @@ program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchan
     then [Workstation]
     else
       case reqeditions of
+        AllDesktops -> Workstation : allSpins rawhide current tgtrel
         AllEditions -> allEditions rawhide current tgtrel
         AllSpins -> allSpins rawhide current tgtrel
         Editions editions ->
@@ -370,6 +372,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
       current <- getCurrentFedoraVersion
       let editions =
             case reqeditions of
+              AllDesktops -> Workstation : allSpins rawhide current tgtrel
               AllSpins -> allSpins rawhide current tgtrel
               _ -> allEditions rawhide current tgtrel
           extras =
