@@ -149,7 +149,7 @@ allEditions rawhide current rel =
     FedoraTest -> allEditions rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allEditions rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS _ True -> Workstation : allSpins rawhide current rel
-    CS n False -> [Workstation]
+    CS _ False -> [Workstation]
     _ -> error' "--all-editions not supported for this release"
   where
     missingEditions r =
