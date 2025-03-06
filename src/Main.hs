@@ -14,7 +14,7 @@ import Data.Semigroup ((<>))
 import Control.Exception.Extra (retry)
 import Control.Monad.Extra (filterM, unless, unlessM, when, whenJust)
 import qualified Data.ByteString.Char8 as B
-import Data.Char (isDigit)
+import Data.Char (isAlphaNum, isDigit)
 import Data.List.Extra
 import Data.Ord (comparing, Down(Down))
 import Data.Maybe
@@ -32,7 +32,7 @@ import Options.Applicative (fullDesc, header, progDescDoc)
 
 import Paths_dl_fedora (version)
 
-import SimpleCmd (cmd, cmd_, cmdBool, cmdN, error', grep_, logMsg,
+import SimpleCmd (cmd, cmd_, cmdBool, error', grep_, logMsg,
                   pipe_, pipeBool, pipeFile_,
                   warning, (+-+),
 #if MIN_VERSION_simple_cmd(0,2,7)
@@ -41,7 +41,7 @@ import SimpleCmd (cmd, cmd_, cmdBool, cmdN, error', grep_, logMsg,
                   sudo_
 #endif
                   )
-import SimpleCmdArgs
+import SimpleCmdArgs hiding (str)
 import SimplePrompt (yesNo, yesNoDefault)
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
@@ -846,11 +846,25 @@ bootImage dryrun img showdir = do
   mQemu <- findExecutable "qemu-kvm"
   case mQemu of
     Just qemu -> do
-      let args = ["-m", "3072", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
-      cmdN qemu (args ++ [showdir </> img])
+      let args = ["-m", "4096", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
+      -- replace with showCommandForUser or cmdN when updated
+      putStrLn . unwords $ qemu : map translateInternal (args ++ [showdir </> img])
       unless dryrun $
         cmd_ qemu (args ++ [img])
     Nothing -> error' "Need qemu to run image"
+
+-- from process System.Process.Posix
+translateInternal :: String -> String
+translateInternal "" = "''"
+translateInternal str
+   -- goodChar is a pessimistic predicate, such that if an argument is
+   -- non-empty and only contains goodChars, then there is no need to
+   -- do any quoting or escaping
+ | all goodChar str = str
+ | otherwise        = '\'' : foldr escape "'" str
+  where escape '\'' = showString "'\\''"
+        escape c    = showChar c
+        goodChar c = isAlphaNum c || c `elem` "-_.,/"
 
 #if !MIN_VERSION_http_directory(0,1,6)
 noTrailingSlash :: T.Text -> T.Text
