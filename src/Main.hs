@@ -45,11 +45,11 @@ import SimpleCmdArgs
 import SimplePrompt (yesNo, yesNoDefault)
 
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
-                         findExecutable, getPermissions, listDirectory,
-                         pathIsSymbolicLink, removeFile, withCurrentDirectory,
-                         writable)
-import System.FilePath (dropFileName, joinPath, takeExtension, takeFileName,
-                        (</>), (<.>))
+                         findExecutable, getHomeDirectory, getPermissions,
+                         listDirectory, pathIsSymbolicLink, removeFile,
+                         withCurrentDirectory, writable)
+import System.FilePath (dropFileName, isRelative, makeRelative, joinPath,
+                        takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 import System.Posix.User (getLoginName)
@@ -253,6 +253,7 @@ main = do
          flagWith' Local 'l' "local" "Show current local image" <|>
          flagLongWith' List "list" "List spins and editions" <|>
          Download <$> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one")
+    <*> optional (strOptionLongWith "dir" "DIRECTORY" "Download directory [default: ~/Downloads/iso]")
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
@@ -285,10 +286,10 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> Bool -> Bool
-        -> Mirror -> Bool -> Maybe CentosChannel -> Maybe String -> Arch
-        -> Release -> RequestEditions -> IO ()
-program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions = do
+program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> Maybe FilePath
+        -> Bool -> Bool -> Mirror -> Bool -> Maybe CentosChannel
+        -> Maybe String -> Arch -> Release -> RequestEditions -> IO ()
+program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -305,7 +306,19 @@ program rawhide gpg checksum debug notimeout mode dryrun run mirror dvdnet mchan
                                else csMirror
               CS 8 _ -> csComposes
               _ -> downloadFpo
-  showdestdir <- setDownloadDir dryrun "iso"
+  dlDir <-
+    case mdir of
+      Just dir -> do
+        exists <- doesDirectoryExist dir
+        if exists
+          then setCWD dir
+          else error' $ "No such directory:" +-+ dir
+      Nothing -> setDownloadDir dryrun "iso"
+  showdestdir <- do  -- only used for output to user
+    home <- getHomeDirectory
+    let path = makeRelative home dlDir
+    return $ if isRelative path then "~" </> path else path
+
   when debug $ print showdestdir
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})

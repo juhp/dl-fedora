@@ -1,44 +1,32 @@
 module DownloadDir (
+  setCWD,
   setDownloadDir)
 where
 
-import Control.Monad
-import SimpleCmd (error')
-import System.Directory (createDirectoryIfMissing,
-                         doesDirectoryExist, getHomeDirectory,
+import System.Directory (createDirectoryIfMissing, doesDirectoryExist,
                          setCurrentDirectory)
 import System.Environment.XDG.UserDir (getUserDir)
 import System.FilePath
 
-setDownloadDir :: Bool -> String
-               -> IO String -- used to present ~/<dir> to user
+setDownloadDir :: Bool -> String -> IO String
 setDownloadDir dryrun subdir = do
-  home <- getHomeDirectory
   dlDir <- getUserDir "DOWNLOAD"
   dirExists <- doesDirectoryExist dlDir
-  -- is this really necessary?
-  unless (dryrun || dirExists) $
-    when (home == dlDir) $
-      error' "HOME directory does not exist!"
   let isoDir = dlDir </> subdir
   isoExists <- doesDirectoryExist isoDir
-  dir <-
-    if isoExists
+  if isoExists
     then setCWD isoDir
     else
     if dirExists
-      then setCWD dlDir
-      else do
+    then setCWD dlDir
+    else do
       if dryrun
         then return dlDir
         else do
         createDirectoryIfMissing True dlDir
         setCWD dlDir
-  let path = makeRelative home dir
-  -- only used for output to user
-  return $ if isRelative path then "~" </> path else path
-  where
-    setCWD :: FilePath -> IO FilePath
-    setCWD dir = do
-      setCurrentDirectory dir
-      return dir
+
+setCWD :: FilePath -> IO FilePath
+setCWD dir = do
+  setCurrentDirectory dir
+  return dir
