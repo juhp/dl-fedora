@@ -207,6 +207,7 @@ readRelease rawhide current rel =
                       LT -> Fedora v
                       EQ -> Rawhide
                       GT -> error' $ "Current rawhide is" +-+ show rawhide
+    "next" -> Fedora (current + 1)
     "current" -> Fedora current
     "previous" -> Fedora (current -1)
     -- FIXME hardcoding
