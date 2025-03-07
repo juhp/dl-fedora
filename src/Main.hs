@@ -267,7 +267,7 @@ main = do
          flagWith' Local 'l' "local" "Show current local image" <|>
          flagLongWith' List "list" "List spins and editions" <|>
          Download <$> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one")
-    <*> optional (strOptionLongWith "dir" "DIRECTORY" "Download directory [default: ~/Downloads/iso]")
+    <*> strOptionalWith 'd' "dir" "DIRECTORY" ("Download directory [default:" +-+ prettyDir home defaultDir ++ "]") defaultDir
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
     <*> switchWith 'r' "run" "Boot image in QEMU"
     <*> mirrorOpt
@@ -288,7 +288,7 @@ main = do
     mirrorOpt :: Parser Mirror
     mirrorOpt =
       flagWith' DefaultLatest 'L' "latest" "Get latest image either from mirror or dl.fp.o if newer" <|>
-      flagWith' DlFpo 'd' "dl" "Use dl.fedoraproject.org (dl.fp.o)" <|>
+      flagLongWith' DlFpo "dl" "Use dl.fedoraproject.org (dl.fp.o)" <|>
       flagWith' KojiFpo 'k' "koji" "Use koji.fedoraproject.org" <|>
       Mirror <$> strOptionWith 'm' "mirror" "URL" ("Mirror url for /pub [default " ++ downloadFpo ++ "]") <|>
       pure UseMirror

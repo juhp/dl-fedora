@@ -34,12 +34,11 @@ without a newer download.
 `dl-fedora c10s` : downloads a Centos Stream net installer.
 
 By default dl-fedora downloads to `~/Downloads/`
-(correctly the XDG user "DOWNLOADS" directory),
-but if you create an `iso` subdirectory there (`~/Downloads/iso/`)
-it will use that directory instead.
+(correctly the XDG user "DOWNLOADS" directory), or `~/Downloads/iso/` if it exists.
+If `~/Downloads/` doesn't exist then the current directory is used.
 You can override the download location with `--dir DIR` (which can be relative: eg `.`).
-Curl downloads to a `.dl-fedora-partial` subdirectory first (which can safely be deleted)
-and the completed downloaded iso is then moved up to the above download directory.
+Curl downloads to a `.dl-fedora-partial` subdirectory first (which can safely be removed)
+and the downloaded file is then moved up to the actual download directory when complete.
 
 `dl-fedora` downloads the latest mirrored image redirected from
 `download.fedoraproject.org` by default.
@@ -83,8 +82,8 @@ Fedora iso downloader
 Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
                  [--debug] [-T|--no-http-timeout] 
                  [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
-                 [--dir DIRECTORY] [-n|--dry-run] [-r|--run] 
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
+                 [-d|--dir DIRECTORY] [-n|--dry-run] [-r|--run] 
+                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)] 
                  [--dvd] [--cs-devel | --cs-test | --cs-production] 
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
@@ -111,12 +110,12 @@ Available options:
   --list                   List spins and editions
   -R,--replace             Delete previous snapshot image after downloading
                            latest one
-  --dir DIRECTORY          Download directory [default: ~/Downloads/iso]
+  -d,--dir DIRECTORY       Download directory [default: ~/Downloads/iso]
   -n,--dry-run             Don't actually download anything
   -r,--run                 Boot image in QEMU
   -L,--latest              Get latest image either from mirror or dl.fp.o if
                            newer
-  -d,--dl                  Use dl.fedoraproject.org (dl.fp.o)
+  --dl                     Use dl.fedoraproject.org (dl.fp.o)
   -k,--koji                Use koji.fedoraproject.org
   -m,--mirror URL          Mirror url for /pub [default
                            https://download.fedoraproject.org/pub]
