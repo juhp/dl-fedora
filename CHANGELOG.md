@@ -1,13 +1,16 @@
 # Changelog
 
-## 1.4 (2025-03-07)
+## 2.0 (2025-03-07)
+- move short `-d` option from `--dl` to `--dir`
+- simplify the download dir logic
+  (now falls back to current directory if ~/Downloads/ doesn't exist)
 - partial downloads are now staged in a `.dl-fedora-partial/` subdirectory
 - promote KDE to edition
 - accumulate download errors and report number of failures
-- 'next' is also accepted now as a release alias
-- add --all-desktops
-- add --dir option to override download dir
-- add --exclude editions option
+- 'next' is now also accepted as a release alias
+- add `--all-desktops`
+- add `--dir option` to override download dir
+- add `--exclude` editions switch
 
 ## 1.3 (2025-02-16)
 - F42 Workstation now created with Kiwi
