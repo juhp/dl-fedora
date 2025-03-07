@@ -65,13 +65,13 @@ import DownloadDir
 data FedoraEdition = Cloud
                    | Container
                    | Everything
+                   | KDE
                    | Server
                    | Workstation
                    | Budgie  -- first spin: used below
                    | Cinnamon
                    | COSMIC
                    | I3
-                   | KDE
                    | KDEMobile
                    | LXDE
                    | LXQt
@@ -99,6 +99,10 @@ showEdition _ Miracle = "MiracleWM"
 showEdition _ I3 = "i3"
 showEdition _ e = show e
 
+showShortEdition :: Release -> FedoraEdition -> String
+showShortEdition rel edition =
+  if edition == KDE then "KDE" else showEdition rel edition
+
 lowerEdition :: FedoraEdition -> String
 lowerEdition = lower . show
 
@@ -118,14 +122,20 @@ instance Read FedoraEdition where
 
 type URL = String
 
-fedoraSpins :: [FedoraEdition]
-fedoraSpins = [Budgie .. Xfce]
+fedoraSpins :: Release -> [FedoraEdition]
+fedoraSpins rel =
+  (if fedoraVerOrLater 42 rel then id else (KDE :)) [Budgie .. Xfce]
+
+fedoraVerOrLater :: Natural -> Release -> Bool
+fedoraVerOrLater _ Rawhide = True
+fedoraVerOrLater n (Fedora m) = m >= n
+fedoraVerOrLater _ _ = False
 
 allSpins :: Natural -> Natural -> Release -> [FedoraEdition]
 allSpins rawhide current rel =
   case rel of
     Rawhide -> allSpins rawhide current $ Fedora rawhide
-    Fedora r -> fedoraSpins \\ missingEditions r
+    Fedora r -> fedoraSpins rel \\ missingEditions r
     FedoraRespin -> delete KDEMobile $ allSpins rawhide current $ Fedora current
     FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
@@ -545,9 +555,9 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
     urlPathMRel :: IO (FilePath, Maybe String)
     urlPathMRel = do
       let subdir =
-            if edition `elem` fedoraSpins
+            if edition `elem` fedoraSpins tgtrel
             then joinPath ["Spins", showArch arch, "iso"]
-            else joinPath [showEdition tgtrel edition, showArch arch, editionMedia edition]
+            else joinPath [showShortEdition tgtrel edition, showArch arch, editionMedia edition]
       case tgtrel of
         FedoraRespin -> return ("alt/live-respins", Nothing)
         Rawhide -> return ("fedora/linux/development/rawhide" +/+ subdir, Just "Rawhide")
@@ -659,16 +669,11 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
     kiwiSpins =
       -- https://fedoraproject.org/wiki/Changes/EROFSforLiveMedia
       (if fedoraVerOrLater 42 tgtrel
-       then [Budgie, COSMIC, KDE, LXQt, Workstation, Xfce]
+       then [Budgie, COSMIC, KDE, LXQt, SoaS, Workstation, Xfce]
        else []) ++
       (if fedoraVerOrLater 41 tgtrel
        then [Cloud, Container, KDEMobile, Miracle]
        else [])
-      where
-        fedoraVerOrLater :: Natural -> Release -> Bool
-        fedoraVerOrLater _ Rawhide = True
-        fedoraVerOrLater n (Fedora m) = m >= n
-        fedoraVerOrLater _ _ = False
 
     editionType :: FedoraEdition -> String
     editionType Server = if dvdnet then "dvd" else "netinst"
