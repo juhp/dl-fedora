@@ -47,9 +47,10 @@ import System.Console.Pretty (color, Color(Red,Yellow))
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
                          findExecutable, getHomeDirectory, getPermissions,
                          listDirectory, pathIsSymbolicLink, removeFile,
-                         renameFile, withCurrentDirectory, writable)
-import System.FilePath (dropFileName, isRelative, makeRelative, joinPath,
-                        takeExtension, takeFileName, (</>), (<.>))
+                         renameFile, setCurrentDirectory, withCurrentDirectory,
+                         writable)
+import System.FilePath (dropFileName, isAbsolute, isRelative, makeRelative,
+                        joinPath, takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
                            readSymbolicLink)
 import System.Posix.User (getLoginName)
@@ -254,6 +255,8 @@ main = do
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
   rawhideVersion <- getRawhideVersion
   currentRelease <- getCurrentFedoraVersion
+  home <- getHomeDirectory
+  defaultDir <- checkDefaultIsoDir
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
     program rawhideVersion
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
@@ -299,10 +302,10 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> Maybe FilePath
+program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> FilePath
         -> Bool -> Bool -> Mirror -> Bool -> Maybe CentosChannel
         -> Maybe String -> Arch -> Release -> RequestEditions -> IO ()
-program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions = do
+program rawhide gpg checksum debug notimeout mode dlDir dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions = do
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
@@ -319,18 +322,12 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
                                else csMirror
               CS 8 _ -> csComposes
               _ -> downloadFpo
-  dlDir <-
-    case mdir of
-      Just dir -> do
-        exists <- doesDirectoryExist dir
-        if exists
-          then setCWD dir
-          else error' $ "No such directory:" +-+ dir
-      Nothing -> setDownloadDir dryrun "iso"
+  unlessM (doesDirectoryExist dlDir) $
+    error' $ "No such directory:" +-+ dlDir
+  setCurrentDirectory dlDir
   showdestdir <- do  -- only used for output to user
     home <- getHomeDirectory
-    let path = makeRelative home dlDir
-    return $ if isRelative path then "~" </> path else path
+    return $ prettyDir home dlDir
 
   when debug $ print showdestdir
   mgr <- if notimeout
@@ -366,6 +363,11 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
            allEditions rawhide current tgtrel \\ editions
   let failures = length $ filter not successes
   when (failures > 0) $ error' $ plural failures "download" +-+ "failed"
+
+prettyDir :: FilePath -> FilePath -> FilePath
+prettyDir home dir =
+  let path = makeRelative home dir
+  in if isAbsolute dir && isRelative path then "~" </> path else dir
 
 -- from fbrnch Common
 plural :: Int -> String -> String
