@@ -165,7 +165,7 @@ missingEditions r =
     EQ -> [COSMIC]
     LT -> [COSMIC, KDEMobile, Miracle]
 
-data RequestEditions = Editions [FedoraEdition]
+data RequestEditions = Editions Bool [FedoraEdition]
                      | AllDesktops
                      | AllSpins
                      | AllEditions
@@ -279,7 +279,9 @@ main = do
     <*> (flagLongWith' AllDesktops "all-desktops" "Get all Fedora desktops" <|>
          flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
          flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
-         Editions <$> many (argumentWith auto "EDITION..."))
+         (Editions
+           <$> switchWith 'x' "exclude" "Exclude specified editions"
+           <*> many (argumentWith auto "EDITION...")))
   where
     mirrorOpt :: Parser Mirror
     mirrorOpt =
@@ -335,7 +337,7 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
   mgr <- if notimeout
          then newManager (tlsManagerSettings {managerResponseTimeout = responseTimeoutNone})
          else httpManager
-  unless (reqeditions == Editions []) $
+  unless (reqeditions == Editions False []) $
     case tgtrel of
       ELN -> error' "cannot specify edition for eln"
       CS n False -> error' $ "cannot specify edition for centos-stream" ++
@@ -345,7 +347,7 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
     case tgtrel of
       CS n True | n >= 9 ->
                   case reqeditions of
-                    Editions [] -> return ()
+                    Editions False [] -> return ()
                     _ -> error' "combining extra edition unsupported"
       _ -> error' "--alt-cs-extra-edition is only for CS Alt Live spins"
   current <- getCurrentFedoraVersion
@@ -358,8 +360,11 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
         AllDesktops -> Workstation : allSpins rawhide current tgtrel
         AllEditions -> allEditions rawhide current tgtrel
         AllSpins -> allSpins rawhide current tgtrel
-        Editions editions ->
+        Editions False editions ->
           if null editions then [Workstation] else editions
+        Editions True [] -> error' "cannot exclude zero editions"
+        Editions True editions ->
+           allEditions rawhide current tgtrel \\ editions
   let failures = length $ filter not successes
   when (failures > 0) $ error' $ plural failures "download" +-+ "failed"
 

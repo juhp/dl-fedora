@@ -41,8 +41,10 @@ tests ghAction =
     ,["-d", "-T", "-n", "40", "--all-editions"]
     ,["-d", "-T", "-n", "41", "--all-editions"]
     ,["-d", "-T", "-n", "42", "--all-editions"]
-    ,["-d", "-T", "-n", "43", "--all-editions"]
-    ,["-d", "-T", "-n", "respin", "--all-spins"]
+-- currently MATE is missing
+--    ,["-d", "-T", "-n", "43", "--all-editions"]
+    ,["-d", "-T", "-n", "43", "--exclude", "mate"]
+    ,["-d", "-T", "-n", "respin", "--all-desktops"]
     ,["-T", "-n", "c9s-live", "--all-desktops"]
     ,["-T", "-n", "c10s-live", "--all-editions"]
     ]
