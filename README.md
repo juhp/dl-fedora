@@ -37,6 +37,7 @@ By default dl-fedora downloads to `~/Downloads/`
 (correctly the XDG user "DOWNLOADS" directory),
 but if you create an `iso` subdirectory there (`~/Downloads/iso/`)
 it will use that directory instead.
+You can override the download location with `--dir DIR` (which can be relative: eg `.`).
 
 `dl-fedora` downloads the latest mirrored image redirected from
 `download.fedoraproject.org` by default.
@@ -62,7 +63,8 @@ Also release aliases:
 - `{8,9,10}-{live,respin}` are aliases for `{c8s,c9s,c10s}-{live,respin}`
 - currently `11` is an alias for eln
 - the current rawhide version can be used for `rawhide`
-- `current` is an alias for the latest current stable Fedora release
+- `next` is an alias for the next Fedora release (either Rawhide or "branched")
+- `current` is an alias for the latest current stable Fedora release (though you may prefer newer `respin`)
 - `previous` is an alias for the previous current stable Fedora release
 
 ## Usage
@@ -79,16 +81,17 @@ Fedora iso downloader
 Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
                  [--debug] [-T|--no-http-timeout]
                  [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
-                 [-n|--dry-run] [-r|--run]
+                 [--dir DIRECTORY] [-n|--dry-run] [-r|--run]
                  [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
                  [--dvd] [--cs-devel | --cs-test | --cs-production]
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
-                 [--all-spins | --all-editions | [EDITION...]]
+                 [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
+                   [EDITION...]]
 
   Tool for downloading Fedora iso file images.
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s, c9s-live
-  EDITION = {cloud,container,everything,server,workstation,budgie,cinnamon,
-             cosmic,i3,kde,kdemobile,lxde,lxqt,mate,miracle,soas,sway,xfce,
+  EDITION = {cloud,container,everything,kde,server,workstation,budgie,cinnamon,
+             cosmic,i3,kdemobile,lxde,lxqt,mate,miracle,soas,sway,xfce,
              silverblue,kinoite,onyx,sericea,iot} [default: workstation]
 
   See <https://github.com/juhp/dl-fedora/#readme>
@@ -106,6 +109,7 @@ Available options:
   --list                   List spins and editions
   -R,--replace             Delete previous snapshot image after downloading
                            latest one
+  --dir DIRECTORY          Download directory [default: ~/Downloads/iso]
   -n,--dry-run             Don't actually download anything
   -r,--run                 Boot image in QEMU
   -L,--latest              Get latest image either from mirror or dl.fp.o if
@@ -124,8 +128,10 @@ Available options:
                            Centos Stream Alternative Live Spin editions
                            (MAX,MIN)
   -a,--arch ARCH           Specify arch [default: x86_64]
+  --all-desktops           Get all Fedora desktops
   --all-spins              Get all Fedora Spins
   --all-editions           Get all Fedora editions
+  -x,--exclude             Exclude specified editions
 ```
 
 ## References

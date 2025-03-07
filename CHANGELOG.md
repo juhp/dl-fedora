@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4 (2025-03-07)
+- accummulate download errors and report number of failures
+- promote KDE to edition
+- 'next' is also accepted now as a release alias
+- add --all-desktops
+- add --dir option to override download dir
+- add --exclude editions option
+
 ## 1.3 (2025-02-16)
 - F42 Workstation now created with Kiwi
 - KDE spin renamed to KDE Desktop
