@@ -1,8 +1,9 @@
 # Changelog
 
 ## 1.4 (2025-03-07)
-- accummulate download errors and report number of failures
+- partial downloads are now staged in a `.dl-fedora-partial/` subdirectory
 - promote KDE to edition
+- accumulate download errors and report number of failures
 - 'next' is also accepted now as a release alias
 - add --all-desktops
 - add --dir option to override download dir

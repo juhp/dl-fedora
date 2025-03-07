@@ -38,6 +38,8 @@ By default dl-fedora downloads to `~/Downloads/`
 but if you create an `iso` subdirectory there (`~/Downloads/iso/`)
 it will use that directory instead.
 You can override the download location with `--dir DIR` (which can be relative: eg `.`).
+Curl downloads to a `.dl-fedora-partial` subdirectory first (which can safely be deleted)
+and the completed downloaded iso is then moved up to the above download directory.
 
 `dl-fedora` downloads the latest mirrored image redirected from
 `download.fedoraproject.org` by default.
@@ -71,19 +73,19 @@ Also release aliases:
 `$ dl-fedora --version`
 
 ```
-1.3
+1.4
 ```
 `$ dl-fedora --help`
 
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
-                 [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
-                 [--dir DIRECTORY] [-n|--dry-run] [-r|--run]
-                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)]
-                 [--dvd] [--cs-devel | --cs-test | --cs-production]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
+                 [--debug] [-T|--no-http-timeout] 
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
+                 [--dir DIRECTORY] [-n|--dry-run] [-r|--run] 
+                 [(-L|--latest) | (-d|--dl) | (-k|--koji) | (-m|--mirror URL)] 
+                 [--dvd] [--cs-devel | --cs-test | --cs-production] 
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
                    [EDITION...]]

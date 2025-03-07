@@ -12,7 +12,7 @@ import Data.Semigroup ((<>))
 #endif
 
 import Control.Exception.Extra (retry)
-import Control.Monad.Extra (filterM, unless, unlessM, when, whenJust)
+import Control.Monad.Extra (filterM, unless, unlessM, when, whenJust, whenM)
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isAlphaNum, isDigit)
 import Data.List.Extra
@@ -41,14 +41,13 @@ import SimpleCmd (cmd, cmd_, cmdBool, error', grep_, logMsg,
                   sudo_
 #endif
                   )
-import System.Console.Pretty (color, Color(Red))
 import SimpleCmdArgs hiding (str)
 import SimplePrompt (yesNo, yesNoDefault)
-
+import System.Console.Pretty (color, Color(Red,Yellow))
 import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
                          findExecutable, getHomeDirectory, getPermissions,
                          listDirectory, pathIsSymbolicLink, removeFile,
-                         withCurrentDirectory, writable)
+                         renameFile, withCurrentDirectory, writable)
 import System.FilePath (dropFileName, isRelative, makeRelative, joinPath,
                         takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
@@ -865,17 +864,28 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
       then return Nothing
       else do
       tz <- getCurrentTimeZone
-      putStrLn $ unwords ["downloading", takeFileName url, renderTime tz mtime, "to", showdestdir]
+      putStrLn $ unwords ["downloading", filename, renderTime tz mtime, "to", showdestdir]
       doCurl
       return (Just True)
   where
+    filename = takeFileName url
+
     doCurl = do
-       ok <- curl debug ["--fail", "--remote-name", url]
-       unless ok $ do
-         yes <- yesNoDefault True "retry download"
-         if yes
-         then doCurl
-         else error' "download failed"
+      let subdir = ".dl-fedora-partial"
+      whenM (doesFileExist filename) $ do
+        partial <- doesFileExist $ subdir </> filename
+        if partial
+          then warning $ color Yellow "2 partials downloads exist! - better to remove one"
+          else renameFile filename (subdir </> filename)
+      ok <- curl debug ["--create-dirs", "--output-dir", subdir, "--fail", "--remote-name", url]
+      unless ok $ do
+        yes <- yesNoDefault True "retry download"
+        if yes
+          then doCurl
+          else error' "download failed"
+      whenM (doesFileExist filename) $
+        error' $ color Red "file already exists" ++ ": not moving" +-+ subdir </> filename
+      renameFile (subdir </> filename) filename
 
 editionMedia :: FedoraEdition -> String
 editionMedia Cloud = "images"

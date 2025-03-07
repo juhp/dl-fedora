@@ -1,10 +1,12 @@
-* download to a .hidden file and then rename
+- configuration for user's defaults (mirror, edition, arch, etc)
 
 - workaround tls-2.0 EMS errors for tls 1.2 mirrors
 
 - catch Ctrl-c and offer to delete download
-  - or --delete-partial (.*.iso.partial)
 
+- check: show size before downloading
+
+- URL type: allow switching to http?
 - update checksum file (eg if unsigned)
 
 - show COMPOSE INFO
@@ -26,7 +28,6 @@
 
 - rename 'everything' to netinstall?
 - rawhide by version number?
-- configuration for user's defaults (mirror, edition, arch, etc)
 - (and/or) support explicit arbitrary dir URL?
 - which Cloud image?
 - check sufficient diskspace
@@ -35,9 +36,8 @@
   - maybe in http-directory?
 
 # deletion
-- option to delete old images/snapshots (and checksum)
+* option to delete old images/snapshots (and checksum)
 - remove old hanging symlinks
-- list/delete small partial downloads
 
 - --no-symlink option
 
