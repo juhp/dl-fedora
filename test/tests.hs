@@ -1,6 +1,7 @@
 import Control.Monad (forM_, unless)
 import Data.List (sort)
 import Data.Maybe
+import Distribution.Fedora.Release (getCurrentFedoraVersion, getRawhideVersion)
 import Numeric.Natural (Natural)
 import System.Environment (lookupEnv)
 import SimpleCmd
@@ -8,28 +9,24 @@ import SimpleCmd
 dlFedora :: Bool -> [String] -> IO ()
 dlFedora ghAction args =
   putStrLn "" >> cmdLog "dl-fedora"
-  ((if ghAction then ("-d" :) . ("-T" :) else id) args)
+  ((if ghAction then ("--dl" :) . ("-T" :) else id) args)
 
--- FIXME automate me
-branched :: Int
-branched = 42
-current, previous :: String
-current = show branched
-previous = show (branched - 1)
-
-tests :: Bool -> [[String]]
-tests ghAction =
+tests :: Bool -> Natural -> Natural -> [[String]]
+tests ghAction rawhide oldest =
+  let latest = show $ rawhide - 1
+      previous = show $ rawhide - 2
+  in
   [["-n", previous, "--checksum"]
   ,["-n", "rawhide", "silverblue"]
   ,["-c", "respin"]
-  ,["-l", current]
+  ,["-l", latest]
   ,["-l", "rawhide", "-n"]
   ,["-n", previous, "kde"]
   ] ++
   if ghAction then []
   else
-    [["-c", current, "silverblue"]
-    ,["-T", "-n", current, "everything"]
+    [["-c", latest, "silverblue"]
+    ,["-T", "-n", latest, "everything"]
     ,["-n", previous, "server", "--dvd", "--arch", "aarch64"]
     ,["41", "iot", "-n"]
     ,["-n", "c8s"]
@@ -38,16 +35,23 @@ tests ghAction =
     ,["-c", "eln"]
     ,["-n", "c9s-live"]
     ,["-n", "c10s-live"]
-    ,["-d", "-T", "-n", "40", "--all-editions"]
-    ,["-d", "-T", "-n", "41", "--all-editions"]
-    ,["-d", "-T", "-n", "42", "--all-editions"]
--- currently MATE is missing
---    ,["-d", "-T", "-n", "43", "--all-editions"]
-    ,["-d", "-T", "-n", "43", "--exclude", "mate"]
-    ,["-d", "-T", "-n", "respin", "--all-desktops"]
+    ]
+    ++
+    allFedoraEditions oldest rawhide
+    ++
+    [["--dl", "-T", "-n", "respin", "--all-desktops"]
     ,["-T", "-n", "c9s-live", "--all-desktops"]
     ,["-T", "-n", "c10s-live", "--all-editions"]
     ]
+
+allFedoraEditions :: Natural -> Natural -> [[String]]
+allFedoraEditions oldest rawhide =
+  let mkFedEd rel = ["--dl", "-T", "-n", show rel, "--all-editions"]
+  in
+    map mkFedEd [oldest..(rawhide-1)]
+    ++
+    -- currently MATE is broken in Rawhide
+    [["--dl", "-T", "-n", show rawhide, "--exclude", "mate"]]
 
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]
@@ -67,9 +71,12 @@ listEditions n = do
 main :: IO ()
 main = do
   ghAction <- isJust <$> lookupEnv "GITHUB_ACTIONS"
+  current <- getCurrentFedoraVersion
+  rawhide <- getRawhideVersion
+  let oldest = current -1
   unless ghAction $ do
-    forM_ [40..43] listEditions
+    forM_ [oldest..rawhide] listEditions
     forM_ [9..10] listEditions
-  let cases = tests ghAction
+  let cases = tests ghAction rawhide oldest
   mapM_ (dlFedora ghAction) cases
   putStrLn $ show (length cases) ++ " tests ran"
