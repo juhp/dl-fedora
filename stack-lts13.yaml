@@ -10,3 +10,4 @@ extra-deps:
   - bodhi-0.1.0
   - cached-json-file-0.1.1
   - http-query-0.1.2
+  - pretty-terminal-0.1.0.0

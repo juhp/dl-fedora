@@ -41,6 +41,7 @@ import SimpleCmd (cmd, cmd_, cmdBool, error', grep_, logMsg,
                   sudo_
 #endif
                   )
+import System.Console.Pretty (color, Color(Red))
 import SimpleCmdArgs hiding (str)
 import SimplePrompt (yesNo, yesNoDefault)
 
@@ -348,7 +349,8 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
                     _ -> error' "combining extra edition unsupported"
       _ -> error' "--alt-cs-extra-edition is only for CS Alt Live spins"
   current <- getCurrentFedoraVersion
-  mapM_ (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions) $
+  successes <-
+    mapM (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions) $
     if mode == List
     then [Workstation]
     else
@@ -358,30 +360,59 @@ program rawhide gpg checksum debug notimeout mode mdir dryrun run mirror dvdnet 
         AllSpins -> allSpins rawhide current tgtrel
         Editions editions ->
           if null editions then [Workstation] else editions
+  let failures = length $ filter not successes
+  when (failures > 0) $ error' $ plural failures "download" +-+ "failed"
+
+-- from fbrnch Common
+plural :: Int -> String -> String
+plural i ns =
+  pluralException i Nothing ns (ns ++ "s")
+
+pluralException :: Int -> Maybe String -> String -> String -> String
+pluralException 0 (Just z) _ _ = z
+pluralException i _ ns ps =
+  mconcat
+  [
+    if i == 0 then "no" else show i,
+    " ",
+    if i == 1 then ns else ps
+  ]
+
+multipleEditions :: RequestEditions -> Bool
+multipleEditions req =
+  case req of
+    Editions _ es -> length es > 1
+    _ -> True
 
 runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool
                   -> Mode -> Bool -> Bool -> Mirror -> Bool
                   -> Maybe CentosChannel -> Maybe String -> Arch -> Release
-                  -> RequestEditions -> FedoraEdition -> IO ()
+                  -> RequestEditions -> FedoraEdition -> IO Bool
 runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mirror dvdnet mchannel mcsedition arch tgtrel reqeditions edition =
   case mode of
     Check -> do
-      (fileurl, filenamePrefix, _prime, _mchecksum, done) <- findURL True
-      if done
-        then do
-        putStrLn $ "Local:" +-+ takeFileName fileurl +-+ "is latest"
-        when debug $ print fileurl
-        else do
-        let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
-        mtarget <- derefSymlink symlink
-        case mtarget of
-          Just target -> do
-            if target == takeFileName fileurl
-              then putStrLn $ "Latest:" +-+ target +-+ "(locally incomplete)"
-              else do
-              putStrLn $ "Local:" +-+ target
-              putStrLn $ "Newer:" +-+ takeFileName fileurl
-          Nothing -> putStrLn $ "Available:" +-+ takeFileName fileurl
+      eres <- findURL True
+      case eres of
+        Left err -> do
+          (if multipleEditions reqeditions then warning else error')  err
+          return False
+        Right (fileurl, filenamePrefix, _prime, _mchecksum, done) -> do
+          if done
+            then do
+            putStrLn $ "Local:" +-+ takeFileName fileurl +-+ "is latest"
+            when debug $ print fileurl
+            else do
+            let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+            mtarget <- derefSymlink symlink
+            case mtarget of
+              Just target -> do
+                if target == takeFileName fileurl
+                  then putStrLn $ "Latest:" +-+ target +-+ "(locally incomplete)"
+                  else do
+                  putStrLn $ "Local:" +-+ target
+                  putStrLn $ "Newer:" +-+ takeFileName fileurl
+              Nothing -> putStrLn $ "Available:" +-+ takeFileName fileurl
+          return True
     Local -> do
       prefix <- getFilePrefix
         -- FIXME support non-iso
@@ -391,6 +422,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         putStrLn $ "Local:" +-+ target
         when run $
           bootImage dryrun target showdestdir
+      return True
     List -> do
       rawhide <- getRawhideVersion
       current <- getCurrentFedoraVersion
@@ -404,19 +436,26 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
               CS _ True -> ["max","min"]
               _ -> []
       putStrLn $ unwords $ sort (map lowerEdition editions) ++ extras
+      return True
     Download removeold -> do
-      (fileurl, filenamePrefix, prime, mchecksum, done) <- findURL False
-      let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
-      downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
-        fileChecksum fileurl mchecksum
-      unless dryrun $ do
-        let localfile = takeFileName fileurl
-        updateSymlink localfile symlink removeold
-        when run $ bootImage dryrun localfile showdestdir
+      eres <- findURL False
+      case eres of
+        Left err -> do
+          (if multipleEditions reqeditions then warning else error')  err
+          return False
+        Right (fileurl, filenamePrefix, prime, mchecksum, done) -> do
+          let symlink = filenamePrefix <> (if tgtrel == ELN then "-" <> showArch arch else "") <> "-latest" <.> takeExtension fileurl
+          downloadFile dryrun debug done mgr fileurl prime showdestdir >>=
+            fileChecksum fileurl mchecksum
+          unless dryrun $ do
+            let localfile = takeFileName fileurl
+            updateSymlink localfile symlink removeold
+            when run $ bootImage dryrun localfile showdestdir
+          return True
   where
     findURL :: Bool
             -- urlpath, fileprefix, primary, checksum, downloaded
-            -> IO (URL, String, Primary, Maybe String, Bool)
+            -> IO (Either String (URL, String, Primary, Maybe String, Bool))
     findURL quiet = do
       (path,mrelease) <- urlPathMRel
       let path' = trailingSlash path
@@ -441,7 +480,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
           fileslen = groupSortOn length $ filter selector $ map T.unpack hrefs
           mchecksum = find ((if tgtrel == FedoraRespin then T.isPrefixOf else T.isSuffixOf) (T.pack "CHECKSUM")) hrefs
       case fileslen of
-        [] -> error' $ "no match for " <> prefixPat <> " in " <> primeDir
+        [] -> return $ Left $ "**" +-+ color Red "no match" +-+ "for" +-+ color Red prefixPat +-+ "in" +-+ primeDir
         (files:_) -> do
           when (length files > 1) $ mapM_ putStrLn files
           let file = last files
@@ -472,8 +511,9 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
                 findMirror primeUrl path file
               else findMirror primeUrl path file
           let finalDir = dropFileName finalurl
-          return (finalurl, prefix, Primary primeUrl primeSize primeTime,
-                  (finalDir +/+) . T.unpack <$> mchecksum, already)
+          return $ Right
+            (finalurl, prefix, Primary primeUrl primeSize primeTime,
+             (finalDir +/+) . T.unpack <$> mchecksum, already)
         where
           getUrlDirectory :: String -> FilePath -> IO (String, [T.Text])
           getUrlDirectory top path = do
