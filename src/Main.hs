@@ -90,10 +90,9 @@ data FedoraEdition = Cloud
 
 showEdition :: Release -> FedoraEdition -> String
 showEdition rel KDE =
-  case rel of
-    Rawhide -> "KDE-Desktop"
-    Fedora r | r >= 42 -> "KDE-Desktop"
-    _ -> "KDE"
+  if fedoraVerOrLater 42 rel
+  then "KDE-Desktop"
+  else "KDE"
 showEdition _ KDEMobile = "KDE-Mobile"
 showEdition _ MATE = "MATE_Compiz"
 showEdition _ Miracle = "MiracleWM"
@@ -130,6 +129,8 @@ fedoraSpins rel =
 fedoraVerOrLater :: Natural -> Release -> Bool
 fedoraVerOrLater _ Rawhide = True
 fedoraVerOrLater n (Fedora m) = m >= n
+fedoraVerOrLater _ FedoraStage = True
+fedoraVerOrLater _ FedoraTest = True
 fedoraVerOrLater _ _ = False
 
 allSpins :: Natural -> Natural -> Release -> [FedoraEdition]

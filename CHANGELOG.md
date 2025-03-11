@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.0.1 (2025-03-11)
+- 'stage' and 'test' releases also need to follow Kiwi editions
+
 ## 2.0 (2025-03-07)
 - move short `-d` option from `--dl` to `--dir`
 - simplify the download dir logic

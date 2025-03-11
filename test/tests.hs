@@ -44,14 +44,18 @@ tests ghAction rawhide oldest =
     ,["-T", "-n", "c10s-live", "--all-editions"]
     ]
 
+mkFedEdition :: String -> [String]
+mkFedEdition ver =
+  ["--dl", "-T", "-n", ver, "--all-editions"]
+
 allFedoraEditions :: Natural -> Natural -> [[String]]
 allFedoraEditions oldest rawhide =
-  let mkFedEd rel = ["--dl", "-T", "-n", show rel, "--all-editions"]
-  in
-    map mkFedEd [oldest..(rawhide-1)]
-    ++
-    -- currently MATE is broken in Rawhide
-    [["--dl", "-T", "-n", show rawhide, "--exclude", "mate"]]
+  map (mkFedEdition . show) [oldest..(rawhide-1)]
+  ++
+  [mkFedEdition "stage"]
+  ++
+  -- currently MATE is broken in Rawhide
+  [["--dl", "-T", "-n", show rawhide, "--exclude", "mate"]]
 
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]

@@ -72,19 +72,19 @@ Also a few edition abbreviations:
 `$ dl-fedora --version`
 
 ```
-2.0
+2.0.1
 ```
 `$ dl-fedora --help`
 
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
-                 [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
-                 [-d|--dir DIRECTORY] [-n|--dry-run] [-r|--run]
-                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)]
-                 [--dvd] [--cs-devel | --cs-test | --cs-production]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
+                 [--debug] [-T|--no-http-timeout] 
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
+                 [-d|--dir DIRECTORY] [-n|--dry-run] [-r|--run] 
+                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)] 
+                 [--dvd] [--cs-devel | --cs-test | --cs-production] 
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
                    [EDITION...]]
