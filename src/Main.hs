@@ -244,13 +244,14 @@ readRelease rawhide current rel =
 data Mode = Check | Local | List | Download Bool -- replace
   deriving Eq
 
+-- FIXME add --editions
+-- FIXME add --releases
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
              [ P.text "Tool for downloading Fedora iso file images.",
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s", "c9s-live"]),
                P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
-               P.text "",
+               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s", "c9s-live"]),
                P.text "See <https://github.com/juhp/dl-fedora/#readme>"
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
