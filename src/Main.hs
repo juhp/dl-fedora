@@ -938,11 +938,11 @@ noTrailingSlash = T.dropWhileEnd (== '/')
 #if !MIN_VERSION_http_directory(0,1,9)
 infixr 5 +/+
 (+/+) :: String -> String -> String
-"" +/+ s = s
-s +/+ "" = s
-s +/+ t | last s == '/' = init s +/+ t
-        | head t == '/' = s +/+ tail t
-s +/+ t = s ++ "/" ++ t
+s +/+ t =
+  case (s,t) of
+    ("",_) -> t
+    (_,"") -> s
+    (_,_) -> dropWhileEnd (== '/') s ++ '/' : dropWhile (== '/') t
 #endif
 
 -- derived from fedora-repoquery Types
