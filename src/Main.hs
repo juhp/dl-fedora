@@ -869,7 +869,7 @@ downloadFile dryrun debug done mgr url prime showdestdir = do
       then return Nothing
       else do
       tz <- getCurrentTimeZone
-      putStrLn $ unwords ["downloading", filename, renderTime tz mtime, "to", showdestdir]
+      putStrLn $ unwords ["downloading", filename, renderTime tz mtime, "under", showdestdir]
       doCurl
       return (Just True)
   where
