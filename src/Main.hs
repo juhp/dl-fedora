@@ -899,6 +899,7 @@ editionMedia _ = "iso"
 
 liveRespin :: FedoraEdition -> String
 liveRespin Budgie = "Budgie"
+liveRespin COSMIC = "COSMIC"
 liveRespin I3 = "i3"
 liveRespin Miracle = "MiracleWM"
 liveRespin e = take 4 . upper . showEdition FedoraRespin $ e
