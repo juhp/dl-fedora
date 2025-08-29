@@ -255,12 +255,10 @@ main = do
                P.text "See <https://github.com/juhp/dl-fedora/#readme>"
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
-  rawhideVersion <- getRawhideVersion
-  currentRelease <- getCurrentFedoraVersion
   home <- getHomeDirectory
   defaultDir <- checkDefaultIsoDir
   simpleCmdArgsWithMods (Just version) (fullDesc <> header "Fedora iso downloader" <> progDescDoc pdoc) $
-    program rawhideVersion
+    program
     <$> switchWith 'g' "gpg-keys" "Import Fedora GPG keys for verifying checksum file"
     <*> checksumOpts
     <*> switchLongWith "debug" "Debug output"
@@ -279,7 +277,7 @@ main = do
                   flagLongWith' CSProduction "cs-production" "Use centos-stream production compose (default is mirror.stream.centos.org)")
     <*> optional (strOptionLongWith "alt-cs-extra-edition" "('MAX'|'MIN')" "Centos Stream Alternative Live Spin editions (MAX,MIN)")
     <*> (optionWith (eitherReader eitherArch) 'a' "arch" "ARCH" ("Specify arch [default:" +-+ showArch sysarch ++ "]") <|> pure sysarch)
-    <*> (readRelease rawhideVersion currentRelease <$> strArg "RELEASE")
+    <*> strArg "RELEASE"
     <*> (flagLongWith' AllDesktops "all-desktops" "Get all Fedora desktops" <|>
          flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
          flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
@@ -304,10 +302,13 @@ data Primary = Primary {primaryUrl :: String,
                         primarySize :: Maybe Integer,
                         primaryTime :: Maybe UTCTime}
 
-program :: Natural -> Bool -> CheckSum -> Bool -> Bool -> Mode -> FilePath
+program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> FilePath
         -> Bool -> Maybe FilePath -> Mirror -> Bool -> Maybe CentosChannel
-        -> Maybe String -> Arch -> Release -> RequestEditions -> IO ()
-program rawhide gpg checksum debug notimeout mode dlDir dryrun mqemu mirror dvdnet mchannel mcsedition arch tgtrel reqeditions = do
+        -> Maybe String -> Arch -> String -> RequestEditions -> IO ()
+program gpg checksum debug notimeout mode dlDir dryrun mqemu mirror dvdnet mchannel mcsedition arch tgtrelstr reqeditions = do
+  rawhide <- getRawhideVersion
+  currentRelease <- getCurrentFedoraVersion
+  let tgtrel = readRelease rawhide currentRelease tgtrelstr
   when (isJust mchannel && not (isCentosStream tgtrel)) $
     error' "channels are only for centos-stream"
   let mirrorUrl =
