@@ -1,3 +1,1 @@
-resolver: lts-23.24
-extra-deps:
-  - fedora-releases-0.2.1
+resolver: lts-23.28
