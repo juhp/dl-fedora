@@ -529,9 +529,9 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun mqemu
             let url = top +/+ path
             when debug $ do
               print url
-              redirs <- retry 3 $ httpRedirects mgr $ replace "https:" "http:" url
-              print redirs
-            ls <- retry 3 $ httpDirectory mgr url
+              -- force redirect
+              httpRedirects mgr (replace "https:" "http:" url) >>= print
+            ls <- retry 2 $ httpDirectory mgr url
             return (url, ls)
 
           findMirror primeUrl path file = do
