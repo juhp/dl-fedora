@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1 (2025-08-30)
+- unbreak bash-completion by reading rawhide and current release versions later
+- add --qemu option to specify how to run iso (overrides $DLFEDORA_QEMU)
+- help: print releases after editions
+- only try http directory twice
+- warn and rename if checksum filesize changed and small locally (unsigned)
+- add Cosmic to liveRespin map
+- MATE missing from F43+ and no MiracleWM respin
+
 ## 2.0.1 (2025-03-11)
 - 'stage' and 'test' releases also need to follow Kiwi editions
 

@@ -12,17 +12,18 @@ Usage examples:
 
 `dl-fedora rawhide` : downloads the latest Fedora Rawhide Workstation Live iso
 
-`dl-fedora 42 silverblue` : downloads the Fedora Silverblue iso
+`dl-fedora 43 silverblue` : downloads the Fedora Silverblue iso
 
 `dl-fedora respin kde` : downloads the latest KDE Live respin
 
-`dl-fedora 41 --list` : list editions for version
+`dl-fedora 42 --list` : list editions for version
 
-`dl-fedora 42 kde workstation` : download both KDE and Workstation editions
+`dl-fedora 43 kde workstation` : download both KDE and Workstation editions
 
-`dl-fedora 41 server --arch aarch64` : will download the Server iso for armv8
+`dl-fedora 42 server --arch aarch64` : will download the Server iso for armv8
 
-`dl-fedora --run 42` : will download Fedora Workstation and boot the Live image with qemu-kvm.
+`dl-fedora --run 43` : will download Fedora Workstation and boot the Live image with qemu-kvm.
+(Set `DLFEDORA_QEMU` or `--qemu` to specify a command or script to run instead of the default "qemu-kvm")
 
 `dl-fedora --check respin` : checks if there is a newer respin iso image
 available.
@@ -72,29 +73,28 @@ Also a few edition abbreviations:
 `$ dl-fedora --version`
 
 ```
-2.0.1
+2.1
 ```
 `$ dl-fedora --help`
 
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
-                 [--debug] [-T|--no-http-timeout] 
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
-                 [-d|--dir DIRECTORY] [-n|--dry-run] [-r|--run] 
-                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)] 
-                 [--dvd] [--cs-devel | --cs-test | --cs-production] 
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
+                 [--debug] [-T|--no-http-timeout]
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
+                 [-d|--dir DIRECTORY] [-n|--dry-run] [-r|--run] [-q|--qemu QEMU]
+                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)]
+                 [--dvd] [--cs-devel | --cs-test | --cs-production]
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
                    [EDITION...]]
 
   Tool for downloading Fedora iso file images.
-  RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s, c9s-live
   EDITION = {cloud,container,everything,kde,server,workstation,budgie,cinnamon,
              cosmic,i3,kdemobile,lxde,lxqt,mate,miracle,soas,sway,xfce,
              silverblue,kinoite,onyx,sericea,iot} [default: workstation]
-
+  RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s, c9s-live
   See <https://github.com/juhp/dl-fedora/#readme>
 
 Available options:
@@ -113,6 +113,8 @@ Available options:
   -d,--dir DIRECTORY       Download directory [default: ~/Downloads/iso]
   -n,--dry-run             Don't actually download anything
   -r,--run                 Boot image in QEMU
+  -q,--qemu QEMU           specify QEMU command for --run (overrides
+                           $DLFEDORA_QEMU, defaults to qemu-kvm)
   -L,--latest              Get latest image either from mirror or dl.fp.o if
                            newer
   --dl                     Use dl.fedoraproject.org (dl.fp.o)
@@ -143,4 +145,4 @@ and also <https://fedoramagazine.org/verify-fedora-iso-file>.
 ## Contribution
 dl-fedora is distributed under the GPL license version 3 or later.
 
-Please report issues or pull requests at <https://github.com/juhp/dl-fedora>.
+Please report issues or contribute at <https://github.com/juhp/dl-fedora>.
