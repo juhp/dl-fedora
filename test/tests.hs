@@ -44,17 +44,20 @@ tests ghAction rawhide oldest =
     ,["-T", "-n", "c10s-live", "--all-editions"]
     ]
 
-mkFedEdition :: String -> [String]
-mkFedEdition ver =
+mkFedEdition :: Natural -> [String]
+mkFedEdition = mkFedEdition' . show
+
+mkFedEdition' :: String -> [String]
+mkFedEdition' ver =
   ["--dl", "-T", "-n", ver, "--all-editions"]
 
 allFedoraEditions :: Natural -> Natural -> [[String]]
 allFedoraEditions oldest rawhide =
-  map (mkFedEdition . show) [oldest..(rawhide-1)]
-  -- empty
-  -- ++ [mkFedEdition "stage"]
+  map mkFedEdition [oldest..(rawhide-1)]
+  -- currently empty
+  -- ++ [mkFedEdition' "stage"]
   -- use --exclude for any missing
-  ++ [["--dl", "-T", "-n", show rawhide]]
+  ++ [mkFedEdition rawhide]
 
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]
