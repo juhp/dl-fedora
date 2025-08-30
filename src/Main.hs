@@ -27,11 +27,7 @@ import Network.HTTP.Client (managerResponseTimeout, newManager,
 import Network.HTTP.Client.TLS
 import Network.HTTP.Directory
 import Numeric.Natural
-
 import Options.Applicative (fullDesc, header, progDescDoc)
-
-import Paths_dl_fedora (version)
-
 import SimpleCmd (cmd, cmd_, cmdBool, error', grep_, logMsg,
                   pipe_, pipeBool, pipeFile_,
                   warning, (+-+),
@@ -62,6 +58,7 @@ import Text.Regex.Posix
 import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import DownloadDir
+import Paths_dl_fedora (version)
 
 data FedoraEdition = Cloud
                    | Container
