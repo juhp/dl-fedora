@@ -51,8 +51,8 @@ mkFedEdition ver =
 allFedoraEditions :: Natural -> Natural -> [[String]]
 allFedoraEditions oldest rawhide =
   map (mkFedEdition . show) [oldest..(rawhide-1)]
-  ++
-  [mkFedEdition "stage"]
+  -- empty
+  -- ++ [mkFedEdition "stage"]
   -- use --exclude for any missing
   ++ [["--dl", "-T", "-n", show rawhide]]
 
