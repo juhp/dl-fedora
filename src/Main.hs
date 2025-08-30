@@ -161,7 +161,7 @@ allEditions rawhide current rel =
 missingEditions :: Natural -> [FedoraEdition]
 missingEditions r =
   case compare r 41 of
-    GT -> [IoT]
+    GT -> IoT : [MATE | r >= 43]
     EQ -> [COSMIC]
     LT -> [COSMIC, KDEMobile, Miracle]
 

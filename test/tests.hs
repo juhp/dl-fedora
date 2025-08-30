@@ -53,15 +53,14 @@ allFedoraEditions oldest rawhide =
   map (mkFedEdition . show) [oldest..(rawhide-1)]
   ++
   [mkFedEdition "stage"]
-  ++
-  -- currently MATE is broken in Rawhide
-  [["--dl", "-T", "-n", show rawhide, "--exclude", "mate"]]
+  -- use --exclude for any missing
+  ++ [["--dl", "-T", "-n", show rawhide]]
 
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]
 allEditions 10 = ["workstation", "kde", "max", "min"]
-allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","mate","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
-  ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42]
+allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
+  ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42] ++ ["mate" | rel < 43]
 
 listEditions :: Natural -> IO ()
 listEditions n = do
