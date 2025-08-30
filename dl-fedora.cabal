@@ -31,7 +31,6 @@ executable dl-fedora
                        DownloadDir
 
   build-depends:       base < 5,
-                       ansi-wl-pprint,
                        bytestring,
                        directory >= 1.2.5,
                        extra,

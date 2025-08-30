@@ -28,6 +28,7 @@ import Network.HTTP.Client.TLS
 import Network.HTTP.Directory
 import Numeric.Natural
 import Options.Applicative (fullDesc, header, progDescDoc)
+import qualified Options.Applicative.Help.Pretty as P
 import SimpleCmd (cmd, cmd_, cmdBool, error', grep_, logMsg,
                   pipe_, pipeBool, pipeFile_,
                   warning, (+-+),
@@ -55,7 +56,6 @@ import Text.Read
 import qualified Text.ParserCombinators.ReadP as R
 import qualified Text.ParserCombinators.ReadPrec as RP
 import Text.Regex.Posix
-import qualified Text.PrettyPrint.ANSI.Leijen as P
 
 import DownloadDir
 import Paths_dl_fedora (version)
@@ -246,10 +246,10 @@ data Mode = Check | Local | List | Download Bool -- replace
 main :: IO ()
 main = do
   let pdoc = Just $ P.vcat
-             [ P.text "Tool for downloading Fedora iso file images.",
-               P.text "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.text . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.text " [default: workstation]" ,
-               P.text ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s", "c9s-live"]),
-               P.text "See <https://github.com/juhp/dl-fedora/#readme>"
+             [ P.pretty "Tool for downloading Fedora iso file images.",
+               P.pretty "EDITION = " <> P.lbrace <> P.align (P.fillCat (P.punctuate P.comma (map (P.pretty . lowerEdition) [(minBound :: FedoraEdition)..maxBound])) <> P.rbrace) <> P.pretty " [default: workstation]" ,
+               P.pretty ("RELEASE = " <> intercalate ", " ["release number", "respin", "rawhide", "test (Beta)", "stage (RC)", "eln", "c9s", "c10s", "c9s-live"]),
+               P.pretty "See <https://github.com/juhp/dl-fedora/#readme>"
              ]
   sysarch <- readArch <$> cmd "rpm" ["--eval", "%{_arch}"]
   home <- getHomeDirectory
