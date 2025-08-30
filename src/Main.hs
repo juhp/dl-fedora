@@ -137,7 +137,7 @@ allSpins rawhide current rel =
   case rel of
     Rawhide -> allSpins rawhide current $ Fedora rawhide
     Fedora r -> fedoraSpins rel \\ missingEditions r
-    FedoraRespin -> delete KDEMobile $ allSpins rawhide current $ Fedora current
+    FedoraRespin -> allSpins rawhide current (Fedora current) \\ [KDEMobile, Miracle]
     FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS 9 True -> [Cinnamon, KDE, MATE, Xfce] -- FIXME missing MAX, MIN
