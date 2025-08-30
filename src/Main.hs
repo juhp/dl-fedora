@@ -16,6 +16,7 @@ import Control.Monad.Extra (filterM, unless, unlessM, when, whenJust, whenM)
 import qualified Data.ByteString.Char8 as B
 import Data.Char (isAlphaNum, isDigit)
 import Data.List.Extra
+import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 import Data.Ord (comparing, Down(Down))
 import Data.Maybe
 import qualified Data.Text as T
@@ -46,6 +47,7 @@ import System.Directory (createDirectory, doesDirectoryExist, doesFileExist,
                          listDirectory, pathIsSymbolicLink, removeFile,
                          renameFile, setCurrentDirectory, withCurrentDirectory,
                          writable)
+import System.Environment (lookupEnv)
 import System.FilePath (dropFileName, isAbsolute, isRelative, makeRelative,
                         joinPath, takeExtension, takeFileName, (</>), (<.>))
 import System.Posix.Files (createSymbolicLink, fileSize, getFileStatus,
@@ -266,7 +268,8 @@ main = do
          Download <$> switchWith 'R' "replace" "Delete previous snapshot image after downloading latest one")
     <*> strOptionalWith 'd' "dir" "DIRECTORY" ("Download directory [default:" +-+ prettyDir home defaultDir ++ "]") defaultDir
     <*> switchWith 'n' "dry-run" "Don't actually download anything"
-    <*> optional (strOptionWith 'q' "qemu" "QEMU" "Boot image with QEMU")
+    <*> switchWith 'r' "run" "Boot image in QEMU"
+    <*> optional (strOptionWith 'q' "qemu" "QEMU" "specify QEMU command for --run (overrides $DLFEDORA_QEMU, defaults to qemu-kvm)")
     <*> mirrorOpt
     <*> switchLongWith "dvd" "Download dvd iso instead of boot netinst (for Server, eln, centos)"
     <*> optional (flagLongWith' CSDevelopment "cs-devel" "Use centos-stream development compose" <|>
@@ -300,9 +303,10 @@ data Primary = Primary {primaryUrl :: String,
                         primaryTime :: Maybe UTCTime}
 
 program :: Bool -> CheckSum -> Bool -> Bool -> Mode -> FilePath
-        -> Bool -> Maybe FilePath -> Mirror -> Bool -> Maybe CentosChannel
-        -> Maybe String -> Arch -> String -> RequestEditions -> IO ()
-program gpg checksum debug notimeout mode dlDir dryrun mqemu mirror dvdnet mchannel mcsedition arch tgtrelstr reqeditions = do
+        -> Bool -> Bool -> Maybe String -> Mirror -> Bool
+        -> Maybe CentosChannel -> Maybe String -> Arch -> String
+        -> RequestEditions -> IO ()
+program gpg checksum debug notimeout mode dlDir dryrun run mqemu mirror dvdnet mchannel mcsedition arch tgtrelstr reqeditions = do
   rawhide <- getRawhideVersion
   currentRelease <- getCurrentFedoraVersion
   let tgtrel = readRelease rawhide currentRelease tgtrelstr
@@ -348,7 +352,7 @@ program gpg checksum debug notimeout mode dlDir dryrun mqemu mirror dvdnet mchan
       _ -> error' "--alt-cs-extra-edition is only for CS Alt Live spins"
   current <- getCurrentFedoraVersion
   successes <-
-    mapM (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun mqemu mirror dvdnet mchannel mcsedition arch tgtrel reqeditions) $
+    mapM (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mqemu mirror dvdnet mchannel mcsedition arch tgtrel reqeditions) $
     if mode == List
     then [Workstation]
     else
@@ -391,10 +395,10 @@ multipleEditions req =
     _ -> True
 
 runProgramEdition :: Manager -> URL -> String -> Bool -> CheckSum -> Bool
-                  -> Mode -> Bool -> Maybe FilePath -> Mirror -> Bool
-                  -> Maybe CentosChannel -> Maybe String -> Arch -> Release
-                  -> RequestEditions -> FedoraEdition -> IO Bool
-runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun mqemu mirror dvdnet mchannel mcsedition arch tgtrel reqeditions edition =
+                  -> Mode -> Bool -> Bool -> Maybe FilePath -> Mirror -> Bool
+                  -> Maybe CentosChannel -> Maybe String -> Arch
+                  -> Release -> RequestEditions -> FedoraEdition -> IO Bool
+runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mqemu mirror dvdnet mchannel mcsedition arch tgtrel reqeditions edition =
   case mode of
     Check -> do
       eres <- findURL True
@@ -426,8 +430,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun mqemu
       mtarget <- derefSymlink symlink
       whenJust mtarget $ \target -> do
         putStrLn $ "Local:" +-+ target
-        whenJust mqemu $
-          bootImage dryrun target showdestdir
+        when run $ bootImage dryrun target showdestdir mqemu
       return True
     List -> do
       rawhide <- getRawhideVersion
@@ -456,7 +459,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun mqemu
           unless dryrun $ do
             let localfile = takeFileName fileurl
             updateSymlink localfile symlink removeold
-            whenJust mqemu $ bootImage dryrun localfile showdestdir
+            when run $ bootImage dryrun localfile showdestdir mqemu
           return True
   where
     findURL :: Bool
@@ -901,24 +904,35 @@ liveRespin I3 = "i3"
 liveRespin Miracle = "MiracleWM"
 liveRespin e = take 4 . upper . showEdition FedoraRespin $ e
 
-bootImage :: Bool -> FilePath -> String -> FilePath -> IO ()
-bootImage dryrun img showdir qemuprog = do
+bootImage :: Bool -> FilePath -> String -> Maybe String -> IO ()
+bootImage dryrun img showdir mqemu = do
   let fileopts =
         case takeExtension img of
           ".iso" -> ["-boot", "d", "-cdrom"]
           _ -> []
-  mQemu <- findExecutable qemuprog
-  case mQemu of
-    Just qemu -> do
-      let args =
-            if qemu == "qemu-kvm"
-            then ["-m", "4096", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
-            else []
-      -- replace with showCommandForUser or cmdN when updated
-      putStrLn . unwords $ qemu : map translateInternal (args ++ [showdir </> img])
-      unless dryrun $
-        cmd_ qemu (args ++ [img])
-    Nothing -> error' $ "No such program:" +-+ qemuprog
+  qemucmd <-
+    case mqemu of
+      Just q -> return q
+      Nothing -> do
+        menv <- lookupEnv "DLFEDORA_QEMU"
+        return $ fromMaybe "qemu-kvm" menv
+  (c :| args) <-
+    case nonEmpty (words qemucmd) of
+      Nothing -> error' "qemu command cannot be empty"
+      Just (q:|qs) -> do
+        mQemu <- findExecutable q
+        case mQemu of
+          Nothing -> error' $ "No such program:" +-+ q
+          Just qemu ->
+            return $
+            qemu :|
+            if null qs
+            then  ["-m", "4096", "-rtc", "base=localtime", "-cpu", "host"] ++ fileopts
+            else qs
+  -- replace with showCommandForUser or cmdN when updated
+  putStrLn . unwords $ c : args ++ [translateInternal (showdir </> img)]
+  unless dryrun $
+    cmd_ c (args ++ [img])
 
 -- from process System.Process.Posix
 translateInternal :: String -> String
