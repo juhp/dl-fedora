@@ -804,8 +804,15 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
         (primeSize,primeTime) <- retry 3 $ httpFileSizeTime mgr url
         when debug $ print (primeSize,primeTime,url)
         ok <- checkLocalFileSize filesize checksumfile primeSize primeTime True
-        unless ok $ error' $ "Checksum file filesize mismatch for " ++ checksumfile
-        return ok
+        if ok
+          then return True
+          else
+          if filesize < 900
+          then do
+            warning $ "Renaming unsigned checksum file" +-+ checksumfile
+            renameFile checksumfile $ checksumfile <.> "old"
+            return False
+          else error' $ "Checksum file filesize mismatch for " ++ checksumfile
 
     checkForFedoraKeys :: Natural -> IO Bool
     checkForFedoraKeys n =
