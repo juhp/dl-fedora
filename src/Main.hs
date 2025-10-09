@@ -716,6 +716,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
     -- https://pagure.io/pungi-fedora/blob/main/f/fedora.conf#_251 kiwibuild
     kiwiSpins :: [FedoraEdition]
     kiwiSpins =
+      [I3 | fedoraVerOrLater 43 tgtrel] ++
       -- https://fedoraproject.org/wiki/Changes/EROFSforLiveMedia
       (if fedoraVerOrLater 42 tgtrel
        then [Budgie, COSMIC, KDE, LXQt, SoaS, Workstation, Xfce]
