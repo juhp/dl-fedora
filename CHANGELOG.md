@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.1 (2025-10-09)
+- F43 i3 moved to Kiwi
+- add COSMIC-Atomic
+
 ## 2.1 (2025-08-30)
 - unbreak bash-completion by reading rawhide and current release versions later
 - add --qemu option to specify how to run iso (overrides $DLFEDORA_QEMU)

@@ -73,19 +73,19 @@ Also a few edition abbreviations:
 `$ dl-fedora --version`
 
 ```
-2.1
+2.1.1
 ```
 `$ dl-fedora --help`
 
 ```
 Fedora iso downloader
 
-Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
-                 [--debug] [-T|--no-http-timeout]
-                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)]
+Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum] 
+                 [--debug] [-T|--no-http-timeout] 
+                 [(-c|--check) | (-l|--local) | --list | (-R|--replace)] 
                  [-d|--dir DIRECTORY] [-n|--dry-run] [-r|--run] [-q|--qemu QEMU]
-                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)]
-                 [--dvd] [--cs-devel | --cs-test | --cs-production]
+                 [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)] 
+                 [--dvd] [--cs-devel | --cs-test | --cs-production] 
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
                  [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
                    [EDITION...]]
@@ -93,7 +93,8 @@ Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
   Tool for downloading Fedora iso file images.
   EDITION = {cloud,container,everything,kde,server,workstation,budgie,cinnamon,
              cosmic,i3,kdemobile,lxde,lxqt,mate,miracle,soas,sway,xfce,
-             silverblue,kinoite,onyx,sericea,iot} [default: workstation]
+             silverblue,kinoite,cosmic-atomic,onyx,sericea,
+             iot} [default: workstation]
   RELEASE = release number, respin, rawhide, test (Beta), stage (RC), eln, c9s, c10s, c9s-live
   See <https://github.com/juhp/dl-fedora/#readme>
 
