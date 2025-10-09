@@ -62,6 +62,7 @@ import Text.Regex.Posix
 import DownloadDir
 import Paths_dl_fedora (version)
 
+{- HLINT ignore FedoraEdition "Use camelCase" -}
 data FedoraEdition = Cloud
                    | Container
                    | Everything
