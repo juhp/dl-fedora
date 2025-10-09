@@ -8,7 +8,7 @@ import SimpleCmd
 
 dlFedora :: Bool -> [String] -> IO ()
 dlFedora ghAction args =
-  putStrLn "" >> cmdLog "dl-fedora"
+  putChar '\n' >> cmdLog_ "dl-fedora"
   ((if ghAction then ("--dl" :) . ("-T" :) else id) args)
 
 tests :: Bool -> Natural -> Natural -> [[String]]
@@ -62,8 +62,7 @@ allFedoraEditions oldest rawhide =
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]
 allEditions 10 = ["workstation", "kde", "max", "min"]
-allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","i3","kde","lxde","lxqt","soas","sway","xfce","silverblue","kinoite","onyx","sericea"] ++
-  ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42] ++ ["mate" | rel < 43]
+allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","kde","lxde","lxqt","mate","sway","silverblue","kinoite","sericea"] ++ ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42] ++ ["onyx" | rel /= 43] ++ ["cosmic-atomic" | rel >= 43] ++ ["i3" | rel < 44] ++ ["soas" | rel < 44] ++ ["xfce" | rel < 44]
 
 listEditions :: Natural -> IO ()
 listEditions n = do
@@ -72,7 +71,7 @@ listEditions n = do
   es <- sort . words <$> cmd "dl-fedora" args
   let aes = sort $ allEditions n
   unless (es == aes) $
-    error' $ show n +-+ "editions unmatched:\n" ++ show es ++ "\n" ++ show aes
+    error' $ 'F' : show n +-+ "editions unmatched:\n" ++ show es ++ "\n" ++ show aes
 
 main :: IO ()
 main = do

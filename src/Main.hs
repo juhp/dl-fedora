@@ -139,7 +139,7 @@ allSpins rawhide current rel =
   case rel of
     Rawhide -> allSpins rawhide current $ Fedora rawhide
     Fedora r -> fedoraSpins rel \\ missingEditions r
-    FedoraRespin -> allSpins rawhide current (Fedora current) \\ [KDEMobile, Miracle]
+    FedoraRespin -> allSpins rawhide current (Fedora current) \\ [Cinnamon, KDEMobile, Miracle, Sway]
     FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS 9 True -> [Cinnamon, KDE, MATE, Xfce] -- FIXME missing MAX, MIN
@@ -163,7 +163,11 @@ allEditions rawhide current rel =
 missingEditions :: Natural -> [FedoraEdition]
 missingEditions r =
   case compare r 42 of
-    GT -> IoT : [Onyx | r == 43 ]
+    GT -> IoT : [Onyx | r == 43 ] ++
+          -- FIXME missing in rawhide
+          -- https://dl.fedoraproject.org/pub/fedora/linux/development/43/Spins/x86_64/iso/
+          -- https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Spins/x86_64/iso/
+          if r > 43 then [I3, SoaS, Xfce] else []
     EQ -> [IoT, COSMIC_Atomic]
     LT -> [COSMIC, COSMIC_Atomic]
 
@@ -912,7 +916,9 @@ liveRespin :: FedoraEdition -> String
 liveRespin Budgie = "Budgie"
 liveRespin COSMIC = "COSMIC"
 liveRespin I3 = "i3"
+liveRespin LXQt = "LXQt"
 liveRespin Miracle = "MiracleWM"
+liveRespin Sway = "Sway"
 liveRespin e = take 4 . upper . showEdition FedoraRespin $ e
 
 bootImage :: Bool -> FilePath -> String -> Maybe String -> IO ()
