@@ -82,6 +82,7 @@ data FedoraEdition = Cloud
                    | Xfce  -- last spin: used below
                    | Silverblue
                    | Kinoite
+                   | COSMIC_Atomic
                    | Onyx
                    | Sericea
                    | IoT
@@ -92,6 +93,7 @@ showEdition rel KDE =
   if fedoraVerOrLater 42 rel
   then "KDE-Desktop"
   else "KDE"
+showEdition _ COSMIC_Atomic = "COSMIC-Atomic"
 showEdition _ KDEMobile = "KDE-Mobile"
 showEdition _ MATE = "MATE_Compiz"
 showEdition _ Miracle = "MiracleWM"
@@ -103,7 +105,7 @@ showShortEdition rel edition =
   if edition == KDE then "KDE" else showEdition rel edition
 
 lowerEdition :: FedoraEdition -> String
-lowerEdition = lower . show
+lowerEdition = replace "_" "-" . lower . show
 
 instance Read FedoraEdition where
   readPrec = do
@@ -160,10 +162,10 @@ allEditions rawhide current rel =
 
 missingEditions :: Natural -> [FedoraEdition]
 missingEditions r =
-  case compare r 41 of
-    GT -> IoT : [MATE | r >= 43]
-    EQ -> [COSMIC]
-    LT -> [COSMIC, KDEMobile, Miracle]
+  case compare r 42 of
+    GT -> IoT : [Onyx | r == 43 ]
+    EQ -> [IoT, COSMIC_Atomic]
+    LT -> [COSMIC, COSMIC_Atomic]
 
 data RequestEditions = Editions Bool [FedoraEdition]
                      | AllDesktops
@@ -727,6 +729,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
 
     editionType :: FedoraEdition -> String
     editionType Server = if dvdnet then "dvd" else "netinst"
+    editionType COSMIC_Atomic = "ostree"
     editionType IoT = "ostree"
     editionType Kinoite = "ostree"
     editionType Onyx = "ostree"
