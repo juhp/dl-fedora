@@ -9,8 +9,8 @@ license:             GPL-3
 license-file:        LICENSE
 homepage:            https://github.com/juhp/dl-fedora
 bug-reports:         https://github.com/juhp/dl-fedora/issues
-author:              Jens Petersen <juhpetersen@gmail.com>
-maintainer:          Jens Petersen <juhpetersen@gmail.com>
+author:              Jens Petersen <petersen@redhat.com>
+maintainer:          Jens Petersen <petersen@redhat.com>
 copyright:           2019-2025  Jens Petersen
 category:            Utility
 build-type:          Simple
@@ -18,7 +18,7 @@ extra-doc-files:     README.md
                      CHANGELOG.md
 tested-with:         GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5, GHC == 8.8.4,
                      GHC == 8.10.7, GHC == 9.0.2, GHC == 9.2.8, GHC == 9.4.8,
-                     GHC == 9.6.6, GHC == 9.8.4, GHC == 9.10.1
+                     GHC == 9.6.7, GHC == 9.8.4, GHC == 9.10.3, GHC == 9.12.2
 
 source-repository head
   type:     git
