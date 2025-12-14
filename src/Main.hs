@@ -361,7 +361,7 @@ program gpg checksum debug notimeout mode dlDir dryrun run mqemu mirror dvdnet m
   successes <-
     mapM (runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run mqemu mirror dvdnet mchannel mcsedition arch tgtrel reqeditions) $
     if mode == List
-    then [Workstation]
+    then [Workstation] -- single dummy value
     else
       case reqeditions of
         AllDesktops -> Workstation : allSpins rawhide current tgtrel
