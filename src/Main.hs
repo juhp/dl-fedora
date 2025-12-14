@@ -140,7 +140,7 @@ allSpins rawhide current rel =
   case rel of
     Rawhide -> allSpins rawhide current $ Fedora rawhide
     Fedora r -> fedoraSpins rel \\ missingEditions r
-    FedoraRespin -> allSpins rawhide current (Fedora current) \\ [Cinnamon, KDEMobile, Miracle, Sway]
+    FedoraRespin -> allSpins rawhide current (Fedora current) \\ [KDEMobile]
     FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
     CS 9 True -> [Cinnamon, KDE, MATE, Xfce] -- FIXME missing MAX, MIN
@@ -919,7 +919,7 @@ liveRespin COSMIC = "COSMIC"
 liveRespin I3 = "i3"
 liveRespin LXQt = "LXQt"
 liveRespin Miracle = "MiracleWM"
-liveRespin Sway = "Sway"
+-- liveRespin Sway = "Sway"
 liveRespin e = take 4 . upper . showEdition FedoraRespin $ e
 
 bootImage :: Bool -> FilePath -> String -> Maybe String -> IO ()
