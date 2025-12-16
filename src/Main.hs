@@ -164,11 +164,11 @@ allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
 allEditions rawhide current rel =
   case rel of
     Rawhide -> allEditions rawhide current $ Fedora rawhide
-    Fedora r -> [minBound..maxBound] \\ missingEditions r
-    FedoraRespin -> Workstation : allSpins rawhide current FedoraRespin
+    Fedora _ -> [Workstation, KDE, Server, Cloud, IoT]
+    FedoraRespin -> [Workstation, KDE]
     FedoraTest -> allEditions rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allEditions rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
-    CS _ True -> Workstation : allSpins rawhide current rel
+    CS _ True -> [Workstation, KDE]
     CS _ False -> [Workstation]
     _ -> error' "--all-editions not supported for this release"
 
@@ -179,7 +179,7 @@ missingEditions r =
           -- FIXME missing in rawhide
           -- https://dl.fedoraproject.org/pub/fedora/linux/development/43/Spins/x86_64/iso/
           -- https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Spins/x86_64/iso/
-          if r > 43 then [KDEMobile] else []
+          [KDEMobile | r > 43]
     EQ -> [IoT, COSMIC_Atomic]
     LT -> [COSMIC, COSMIC_Atomic]
 
@@ -377,7 +377,7 @@ program gpg checksum debug notimeout mode dlDir dryrun run mqemu mirror dvdnet m
     then [Workstation] -- single dummy value
     else
       case reqeditions of
-        AllDesktops -> Workstation : allSpins rawhide current tgtrel
+        AllDesktops -> Workstation : KDE : allSpins rawhide current tgtrel
         AllEditions -> allEditions rawhide current tgtrel
         AllVariants -> allVariants rawhide current tgtrel
         AllSpins -> allSpins rawhide current tgtrel
@@ -458,7 +458,8 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
       current <- getCurrentFedoraVersion
       let editions =
             case reqeditions of
-              AllDesktops -> Workstation : allSpins rawhide current tgtrel
+              AllDesktops -> Workstation : KDE : allSpins rawhide current tgtrel
+              AllEditions -> allEditions rawhide current tgtrel
               AllSpins -> allSpins rawhide current tgtrel
               _ -> allVariants rawhide current tgtrel
           extras =
