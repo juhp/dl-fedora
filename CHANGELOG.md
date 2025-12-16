@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2 (2025-12-16)
+- add `--all-variants` (was `--all-editions`)
+- `--all-editions` now corresponds to the actual Fedora Editions
+- respin: reenable Cinnamon and Sway; uppercase LXQT; SOAS missing
+- more 44 spins now using kiwi
+- update missingEditions for rawhide
+
 ## 2.1.1 (2025-10-09)
 - F43 i3 moved to Kiwi
 - add COSMIC-Atomic
@@ -182,4 +189,4 @@
 - use new http-directory library to check exact filesize
 
 ## 0.1
-* initial release
+- initial release

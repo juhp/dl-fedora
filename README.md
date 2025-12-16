@@ -73,7 +73,7 @@ Also a few edition abbreviations:
 `$ dl-fedora --version`
 
 ```
-2.1.1
+2.2
 ```
 `$ dl-fedora --help`
 
@@ -87,8 +87,8 @@ Usage: dl-fedora [--version] [-g|--gpg-keys] [--no-checksum | --checksum]
                  [(-L|--latest) | --dl | (-k|--koji) | (-m|--mirror URL)] 
                  [--dvd] [--cs-devel | --cs-test | --cs-production] 
                  [--alt-cs-extra-edition ('MAX'|'MIN')] [-a|--arch ARCH] RELEASE
-                 [--all-desktops | --all-spins | --all-editions | [-x|--exclude]
-                   [EDITION...]]
+                 [--all-desktops | --all-spins | --all-editions | 
+                   --all-variants | [-x|--exclude] [EDITION...]]
 
   Tool for downloading Fedora iso file images.
   EDITION = {cloud,container,everything,kde,server,workstation,budgie,cinnamon,
@@ -135,6 +135,7 @@ Available options:
   --all-desktops           Get all Fedora desktops
   --all-spins              Get all Fedora Spins
   --all-editions           Get all Fedora editions
+  --all-variants           Get all Fedora variants
   -x,--exclude             Exclude specified editions
 ```
 
