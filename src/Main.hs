@@ -168,7 +168,7 @@ missingEditions r =
           -- FIXME missing in rawhide
           -- https://dl.fedoraproject.org/pub/fedora/linux/development/43/Spins/x86_64/iso/
           -- https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Spins/x86_64/iso/
-          if r > 43 then [I3, SoaS, Xfce] else []
+          if r > 43 then [KDEMobile] else []
     EQ -> [IoT, COSMIC_Atomic]
     LT -> [COSMIC, COSMIC_Atomic]
 
