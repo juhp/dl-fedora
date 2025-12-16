@@ -126,7 +126,7 @@ type URL = String
 
 fedoraSpins :: Release -> [FedoraEdition]
 fedoraSpins rel =
-  (if fedoraVerOrLater 42 rel then id else (KDE :)) [Budgie .. Xfce]
+  (if fedoraVerOrLater 42 rel then [] else [KDE]) ++ [Budgie .. Xfce]
 
 fedoraVerOrLater :: Natural -> Release -> Bool
 fedoraVerOrLater _ Rawhide = True
