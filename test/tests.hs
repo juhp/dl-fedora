@@ -37,27 +37,27 @@ tests ghAction rawhide oldest =
     ,["-n", "c10s-live"]
     ]
     ++
-    allFedoraEditions oldest rawhide
+    allFedoraVariants oldest rawhide
     ++
     [["--dl", "-T", "-n", "respin", "--all-desktops"]
     ,["-T", "-n", "c9s-live", "--all-desktops"]
     ,["-T", "-n", "c10s-live", "--all-editions"]
     ]
 
-mkFedEdition :: Natural -> [String]
-mkFedEdition = mkFedEdition' . show
+mkFedVariants :: Natural -> [String]
+mkFedVariants = mkFedVariants' . show
+  where
+    mkFedVariants' :: String -> [String]
+    mkFedVariants' ver =
+      ["--dl", "-T", "-n", ver, "--all-variants"]
 
-mkFedEdition' :: String -> [String]
-mkFedEdition' ver =
-  ["--dl", "-T", "-n", ver, "--all-editions"]
-
-allFedoraEditions :: Natural -> Natural -> [[String]]
-allFedoraEditions oldest rawhide =
-  map mkFedEdition [oldest..(rawhide-1)]
+allFedoraVariants :: Natural -> Natural -> [[String]]
+allFedoraVariants oldest rawhide =
+  map mkFedVariants [oldest..(rawhide-1)]
   -- currently empty
-  -- ++ [mkFedEdition' "stage"]
+  -- ++ [mkFedVariants' "stage"]
   -- use --exclude for any missing
-  ++ [mkFedEdition rawhide]
+  ++ [mkFedVariants rawhide]
 
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]

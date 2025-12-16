@@ -148,6 +148,18 @@ allSpins rawhide current rel =
     CS _ _ -> []
     ELN -> []
 
+allVariants :: Natural -> Natural -> Release -> [FedoraEdition]
+allVariants rawhide current rel =
+  case rel of
+    Rawhide -> allVariants rawhide current $ Fedora rawhide
+    Fedora r -> [minBound..maxBound] \\ missingEditions r
+    FedoraRespin -> Workstation : allSpins rawhide current FedoraRespin
+    FedoraTest -> allVariants rawhide current $ Fedora current -- FIXME use fedora-releases
+    FedoraStage -> allVariants rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
+    CS _ True -> Workstation : allSpins rawhide current rel
+    CS _ False -> [Workstation]
+    _ -> error' "--all-variants not supported for this release"
+
 allEditions :: Natural -> Natural -> Release -> [FedoraEdition]
 allEditions rawhide current rel =
   case rel of
@@ -175,6 +187,7 @@ data RequestEditions = Editions Bool [FedoraEdition]
                      | AllDesktops
                      | AllSpins
                      | AllEditions
+                     | AllVariants
   deriving Eq
 
 data CheckSum = AutoCheckSum | NoCheckSum | CheckSum
@@ -287,6 +300,7 @@ main = do
     <*> (flagLongWith' AllDesktops "all-desktops" "Get all Fedora desktops" <|>
          flagLongWith' AllSpins "all-spins" "Get all Fedora Spins" <|>
          flagLongWith' AllEditions "all-editions" "Get all Fedora editions" <|>
+         flagLongWith' AllVariants "all-variants" "Get all Fedora variants" <|>
          (Editions
            <$> switchWith 'x' "exclude" "Exclude specified editions"
            <*> many (argumentWith auto "EDITION...")))
@@ -365,12 +379,13 @@ program gpg checksum debug notimeout mode dlDir dryrun run mqemu mirror dvdnet m
       case reqeditions of
         AllDesktops -> Workstation : allSpins rawhide current tgtrel
         AllEditions -> allEditions rawhide current tgtrel
+        AllVariants -> allVariants rawhide current tgtrel
         AllSpins -> allSpins rawhide current tgtrel
         Editions False editions ->
           if null editions then [Workstation] else editions
         Editions True [] -> error' "cannot exclude zero editions"
         Editions True editions ->
-           allEditions rawhide current tgtrel \\ editions
+           allVariants rawhide current tgtrel \\ editions
   let failures = length $ filter not successes
   when (failures > 0) $ error' $ plural failures "download" +-+ "failed"
 
@@ -445,7 +460,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
             case reqeditions of
               AllDesktops -> Workstation : allSpins rawhide current tgtrel
               AllSpins -> allSpins rawhide current tgtrel
-              _ -> allEditions rawhide current tgtrel
+              _ -> allVariants rawhide current tgtrel
           extras =
             case tgtrel of
               CS _ True -> ["max","min"]
