@@ -935,7 +935,7 @@ liveRespin :: FedoraEdition -> String
 liveRespin Budgie = "Budgie"
 liveRespin COSMIC = "COSMIC"
 liveRespin I3 = "i3"
-liveRespin LXQt = "LXQt"
+-- liveRespin LXQt = "LXQt"
 liveRespin Miracle = "MiracleWM"
 -- liveRespin Sway = "Sway"
 liveRespin e = take 4 . upper . showEdition FedoraRespin $ e
