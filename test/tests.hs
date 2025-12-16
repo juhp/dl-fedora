@@ -28,7 +28,7 @@ tests ghAction rawhide oldest =
     [["-c", latest, "silverblue"]
     ,["-T", "-n", latest, "everything"]
     ,["-n", previous, "server", "--dvd", "--arch", "aarch64"]
-    ,["41", "iot", "-n"]
+    ,["43", "iot", "-n"]
     ,["-n", "c8s"]
     ,["-n", "c9s", "--dvd"]
     ,["-n", "c10s"]
@@ -62,7 +62,7 @@ allFedoraEditions oldest rawhide =
 allEditions :: Natural -> [String]
 allEditions 9 = allEditions 10 ++ ["cinnamon", "mate", "xfce"]
 allEditions 10 = ["workstation", "kde", "max", "min"]
-allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","kde","lxde","lxqt","mate","sway","silverblue","kinoite","sericea"] ++ ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42] ++ ["onyx" | rel /= 43] ++ ["cosmic-atomic" | rel >= 43] ++ ["i3" | rel < 44] ++ ["soas" | rel < 44] ++ ["xfce" | rel < 44]
+allEditions rel = ["cloud","container","everything","server","workstation","budgie","cinnamon","i3", "kde","lxde","lxqt","mate","soas","sway","xfce", "silverblue","kinoite","sericea"] ++ ["cosmic" | rel >= 42] ++ ["kdemobile" | rel >= 41 && rel < 44] ++ ["miracle" | rel >= 41] ++ ["iot" | rel < 42] ++ ["onyx" | rel /= 43] ++ ["cosmic-atomic" | rel >= 43]
 
 listEditions :: Natural -> IO ()
 listEditions n = do
@@ -71,7 +71,7 @@ listEditions n = do
   es <- sort . words <$> cmd "dl-fedora" args
   let aes = sort $ allEditions n
   unless (es == aes) $
-    error' $ 'F' : show n +-+ "editions unmatched:\n" ++ show es ++ "\n" ++ show aes
+    error' $ 'F' : show n +-+ "editions unmatched:\noutput: " ++ show es ++ "\nexpect: " ++ show aes
 
 main :: IO ()
 main = do
