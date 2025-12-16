@@ -124,9 +124,8 @@ instance Read FedoraEdition where
 
 type URL = String
 
-fedoraSpins :: Release -> [FedoraEdition]
-fedoraSpins rel =
-  (if fedoraVerOrLater 42 rel then [] else [KDE]) ++ [Budgie .. Xfce]
+fedoraSpins :: [FedoraEdition]
+fedoraSpins = [Budgie .. Xfce]
 
 fedoraVerOrLater :: Natural -> Release -> Bool
 fedoraVerOrLater _ Rawhide = True
@@ -139,7 +138,7 @@ allSpins :: Natural -> Natural -> Release -> [FedoraEdition]
 allSpins rawhide current rel =
   case rel of
     Rawhide -> allSpins rawhide current $ Fedora rawhide
-    Fedora r -> fedoraSpins rel \\ missingEditions r
+    Fedora r -> fedoraSpins \\ missingEditions r
     FedoraRespin -> allSpins rawhide current (Fedora current) \\ [KDEMobile,SoaS]
     FedoraTest -> allSpins rawhide current $ Fedora current -- FIXME use fedora-releases
     FedoraStage -> allSpins rawhide current $ Fedora (current + 1) -- FIXME use fedora-releases
@@ -611,7 +610,7 @@ runProgramEdition mgr mirrorUrl showdestdir gpg checksum debug mode dryrun run m
     urlPathMRel :: IO (FilePath, Maybe String)
     urlPathMRel = do
       let subdir =
-            if edition `elem` fedoraSpins tgtrel
+            if edition `elem` fedoraSpins
             then joinPath ["Spins", showArch arch, "iso"]
             else joinPath [showShortEdition tgtrel edition, showArch arch, editionMedia edition]
       case tgtrel of
